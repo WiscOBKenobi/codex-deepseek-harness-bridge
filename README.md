@@ -1,8 +1,37 @@
 # Codex × DeepSeek Harness
 
-**让 Codex 负责规划和验收，让 DeepSeek 通过本机 Harness 执行任务。** 本项目是两者之间的 MCP 连接程序：Codex 提交工作，本地服务持续运行并保存状态，DeepSeek 生成产物，Codex 读取、核对并整合结果。
+**让 Codex 负责规划和验收，让 DeepSeek 通过本机 Harness 执行你委派的任务。** 你仍然在 Codex 中提出需求；需要分工时，Codex 通过本项目提供的 MCP 接口，把指定任务交给 DeepSeek，例如整理文件、生成代码，或在已启用的编码模式下运行命令和测试。DeepSeek 通过官方 Harness 的工具操作独立任务目录，Codex 再读取实际产物、检查结果并整合到你的工作中。
 
-Codex 继续使用你在客户端选择的模型。本项目不会额外调用 Codex 或 OpenAI API，也不会替换主模型；委派任务使用 DeepSeek API 独立计费。
+本项目提供连接两者所需的本地后台：接收任务、管理队列、保存执行状态和产物，并让 Codex 查询进度、取消任务或要求继续修改。附带网页面板用于查看进度或手动提交，日常通过 Codex 委派时无需打开它。
+
+Codex 继续使用你在客户端选择的模型。本项目不会额外调用 Codex 或 OpenAI API，也不会替换主模型；委派任务使用你自己的 DeepSeek API，费用由 DeepSeek 单独收取。
+
+## 使用前需要准备什么
+
+### 1. 先在本机安装官方 DeepSeek Harness
+
+请先从 **[DeepSeek Harness 官方 GitHub 仓库](https://github.com/deepseek-ai/deepseek-harness)** 下载并安装。本项目依赖它执行任务，仓库中不附带 Harness 本体。当前对接方式使用已构建的 Harness 源码目录，具体下载、依赖安装和构建步骤见 [手动安装 SOP](docs/安装SOP.md#2-下载并构建官方-harness)；该流程固定了已验证的上游版本。已有兼容安装可以复用。
+
+也可以把这一步交给自己的本机 Agent，按下面的 Agent 安装流程完成下载、构建和接入。
+
+### 2. 配置 Harness 的安装目录和数据目录
+
+**需要提供本机的实际目录。** 双击本项目的 `配置本机.cmd` 选择以下两个文件夹，或把路径告诉负责安装的 Agent；配置工具会保存路径，无需自己编辑配置文件。
+
+| 配置项 | 选择哪个目录 |
+| --- | --- |
+| `harnessRoot`：安装目录 | 官方 Harness 的源码根目录，即包含 `package.json` 和 `apps/cli` 的那一层。 |
+| `harnessHome`：数据目录 | 这份 Harness 实际使用、保存设置与 API 凭据的目录，必须与填写 Key 时使用的 `DSH_HOME` 一致。 |
+
+本项目安装 SOP 使用 Harness 目录下的 `.local/dsh-home` 作为数据目录；如果复用原有安装，请选择它实际使用的位置。上游在未指定 `DSH_HOME` 时默认使用用户目录下的 `.dsh`。这里只需要选择目录，不需要打开凭据文件或复制其中的 Key。
+
+### 3. 准备自己的 DeepSeek API Key，并在 Harness 中填写
+
+使用者需要自己的 DeepSeek 开放平台账号、API Key 和可用的 API 余额。请前往 **[DeepSeek 官方开放平台](https://platform.deepseek.com/)** 登录，**[创建自己的 API Key](https://platform.deepseek.com/api_keys)**，并按需 **[充值 API 余额](https://platform.deepseek.com/top_up)**。本项目不提供 Key 或调用额度。
+
+取得 Key 后，在本机 **官方 Harness 的界面**中填写：首次使用时选择“添加 API Key”，填入后“保存并继续”；已有配置则进入 **设置 / Settings → 模型 / Models → DeepSeek（`deepseek-official`）→ 编辑 / Edit → API 密钥 / API key → 保存 / Apply**。具体操作见 [填写 API Key 的步骤](docs/安装SOP.md#3-打开-harness并亲自填写-api-key)。
+
+Key 由 Harness 保存，本项目通过上面配置的数据目录使用它。**不要把 Key 填进 Codex 对话、本项目的 `config.json` 或 GitHub 文件。** 完成配置后，无需一直开着 Harness 设置网页，Codex 委派任务时会按需启动执行进程。
 
 ## 先选择安装方式
 
