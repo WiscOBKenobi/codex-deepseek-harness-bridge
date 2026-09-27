@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
-import { join, resolve, relative } from 'node:path';
-import { tmpdir } from 'node:os';
+import { join, resolve, relative, sep } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { loadConfig } from '../src/config.mjs';
@@ -11,8 +10,11 @@ import { startHarness, createPatch } from '../src/harness-runner.mjs';
 import { createCallBudget } from '../src/harness-budget.mjs';
 
 async function temporary(t) {
-  const root=await mkdtemp(join(tmpdir(),'bridge-v2-'));
-  t.after(async()=>{assert(!relative(tmpdir(),root).startsWith('..'));await rm(root,{recursive:true,force:true});});
+  // Harness rejects path aliases; hosted Windows TEMP can use an 8.3 path.
+  const base=resolve('.bridge','test-runtime-v2');
+  await mkdir(base,{recursive:true});
+  const root=await mkdtemp(join(base,'case-'));
+  t.after(async()=>{const part=relative(base,root);assert(part&&part!=='..'&&!part.startsWith('..'+sep));await rm(root,{recursive:true,force:true});});
   return root;
 }
 async function managerFixture(t) {
