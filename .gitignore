@@ -1,0 +1,13 @@
+node_modules/
+.bridge/
+config.json
+.codex/config.toml
+examples/live-input.json
+dist/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+.credentials*
+.workbuddy/

@@ -1,0 +1,19 @@
+{
+  "harnessRoot": "../deepseek-harness",
+  "harnessHome": "../deepseek-harness/.local/dsh-home",
+  "provider": "deepseek-official",
+  "model": "deepseek-flash",
+  "reasoningEffort": "max",
+  "readRoots": [
+    "."
+  ],
+  "maxRuntimeSeconds": 0,
+  "maxToolCalls": 0,
+  "stallWarningSeconds": 300,
+  "maxInputBytes": 2000000,
+  "maxOutputBytes": 5000000,
+  "defaultMode": "files",
+  "enableNativeAgent": false,
+  "maxStreamBytes": 4194304,
+  "prepareWindowsWorkspaceAcl": false
+}

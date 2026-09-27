@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Codex × DeepSeek · 可选任务监控面板</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="/" aria-label="任务面板首页"><span class="brand-mark" aria-hidden="true">C<span>×</span>D</span><span>可选任务监控面板<small>Codex × DeepSeek Harness</small></span></a>
+    <div class="header-actions"><button class="service-pill" id="service-button" type="button"><span class="dot" id="service-dot"></span><span id="service-label">正在连接</span></button><button class="secondary" id="new-task-button" type="button"><span aria-hidden="true">＋</span> 手动提交给 DeepSeek</button></div>
+  </header>
+  <div id="global-notice" class="global-notice" role="alert" hidden></div>
+  <div class="purpose-banner"><strong>主要入口：在 Codex 中安排工作</strong><span>Codex 通过 MCP 分派任务并检查结果；这个可选面板用于查看进度、产物和停止任务。关闭页面不会停止后台任务。</span></div>
+  <main class="app-layout">
+    <aside class="sidebar" aria-label="任务列表">
+      <div class="sidebar-heading"><h1>工作任务 <span id="task-count">0</span></h1><button id="refresh-button" class="icon-button" type="button" aria-label="刷新任务列表" title="刷新">↻</button></div>
+      <p class="sidebar-description">查看 Codex 委派与手动提交的任务。</p>
+      <nav class="filter-row" aria-label="任务筛选"><button type="button" class="filter active" data-filter="all" aria-pressed="true">全部</button><button type="button" class="filter" data-filter="active" aria-pressed="false">进行中</button><button type="button" class="filter" data-filter="review" aria-pressed="false">待验收</button></nav>
+      <div id="task-list" class="task-list" aria-live="polite"><p class="list-empty">正在加载任务…</p></div>
+      <div class="sidebar-footer"><span class="local-dot"></span>仅在这台电脑运行 <span id="version-label"></span></div>
+    </aside>
+    <section class="content" id="task-content" aria-label="任务详情">
+      <p id="detail-loading" class="panel-empty" role="status" hidden>正在加载任务详情…</p>
+      <div class="welcome" id="welcome">
+        <div class="eyebrow">可选监控 · 本机执行</div><h2>在 Codex 安排工作，<br>在这里查看进度。</h2>
+        <p>请在 Codex 中说明目标，并允许它委派 DeepSeek。连接程序通过现有 Harness 执行任务；此面板展示执行状态、文件和验收记录，并不是另一个 Harness 聊天界面。</p>
+        <button type="button" class="secondary" id="welcome-create">手动提交给 DeepSeek <span aria-hidden="true">↗</span></button>
+        <p class="manual-note">手动提交直接交给 DeepSeek，绕过 Codex，不会自动拆分任务或验收；需要你自己检查结果。</p><ol class="welcome-steps"><li><span>01</span><div><strong>Codex 分派</strong><small>明确任务和交付要求</small></div></li><li><span>02</span><div><strong>Harness 执行</strong><small>跟踪进度，按需干预</small></div></li><li><span>03</span><div><strong>Codex 验收</strong><small>检查产物并整合交付</small></div></li></ol>
+        <p class="subtle-note">已复用现有 Harness 的密钥配置，无需在这里填写 API Key。</p>
+      </div>
+      <article id="task-detail" hidden>
+        <header class="detail-header"><div class="detail-title-wrap"><div class="eyebrow" id="task-reference"></div><h2 id="task-title"></h2><div class="status-row"><span class="badge" id="task-status"></span><span class="badge review-badge" id="task-review"></span><span class="muted" id="task-updated"></span></div></div><button class="danger-outline" type="button" id="cancel-button" hidden>停止任务</button></header>
+        <div id="task-error" class="inline-notice danger" role="alert" hidden></div>
+        <div class="task-stats"><div><span>执行模型</span><strong id="task-model">—</strong></div><div><span>执行模式</span><strong id="task-mode">—</strong></div><div><span>工具调用</span><strong id="task-tools">—</strong></div><div><span>单次运行上限</span><strong id="task-limits">—</strong></div></div><section class="task-health" aria-label="任务活动状态"><div class="health-heading"><h3>活动状态</h3><span class="badge" id="task-health-state">—</span></div><p id="task-health-note" class="field-help"></p><div class="activity-times"><span>最近心跳：<time id="task-heartbeat">—</time></span><span>最近进展：<time id="task-progress">—</time></span></div></section>
+        <details class="instruction-panel"><summary>任务要求与工作目录</summary><pre id="task-instruction" class="plain-text"></pre><div class="path-row"><code id="task-workspace"></code><button id="copy-workspace" type="button" class="secondary small">复制路径</button></div></details>
+        <div class="tabs" role="tablist" aria-label="任务信息"><button id="results-tab" type="button" role="tab" aria-selected="true" aria-controls="results-panel" tabindex="0">交付结果 <span id="artifact-count">0</span></button><button id="events-tab" type="button" role="tab" aria-selected="false" aria-controls="events-panel" tabindex="-1">执行记录 <span id="event-count">0</span></button></div>
+        <section id="results-panel" role="tabpanel" aria-labelledby="results-tab">
+          <div id="result-warning" class="inline-notice danger" role="alert" hidden></div>
+          <div class="result-summary" id="result-summary" hidden><h3>执行摘要</h3><pre id="result-summary-text" class="plain-text"></pre></div>
+          <div class="section-heading"><h3>生成文件</h3><span class="muted">保存在本地 output 目录</span></div>
+          <div id="artifact-list" class="artifact-list"><p class="panel-empty">任务完成后，生成的文件会显示在这里。</p></div>
+          <section id="file-preview" class="file-preview" hidden><div class="preview-heading"><h3 id="preview-title"></h3><button type="button" id="close-preview" class="icon-button" aria-label="关闭文件预览">×</button></div><pre id="preview-content" tabindex="0"></pre><p id="preview-note" class="muted"></p></section>
+          <section class="review-panel" id="review-panel" hidden><div><div class="eyebrow">最后一步 · 人工验收</div><h3 id="review-heading">执行完成，还需要检查结果</h3><p id="review-description">先打开文件核对内容，再记录验收结论。模型完成不等于结果已验收。</p></div><label for="review-note">验收说明 <span class="muted">（必填）</span></label><textarea id="review-note" rows="2" maxlength="4000" placeholder="例如：已核对计算和文件内容，结果符合要求。"></textarea><div class="review-actions"><button type="button" class="primary" id="accept-button">标记为验收通过</button><button type="button" class="secondary" id="changes-button">标记需修改</button><button type="button" class="text-button" id="continue-button">让 DeepSeek 继续修改 →</button></div></section>
+        </section>
+        <section id="events-panel" role="tabpanel" aria-labelledby="events-tab" hidden><p class="panel-description">展示执行事件与工具结果，不展示模型思考过程。</p><ol id="event-list" class="event-list"></ol></section>
+      </article>
+    </section>
+  </main>
+  <dialog id="create-dialog"><form id="create-form"><div class="dialog-heading"><div><div class="eyebrow">辅助入口 · 由你检查结果</div><h2>手动提交给 DeepSeek</h2></div><button class="icon-button" type="button" data-close="create-dialog" aria-label="关闭">×</button></div><p class="inline-notice">此入口绕过 Codex，直接调用 Harness 执行；不会自动拆分任务或验收。日常工作请在 Codex 对话中安排。</p><label for="task-mode-select">执行模式</label><select id="task-mode-select" name="mode"><option value="agent" disabled>完整代理 · Harness 原生能力</option><option value="files" selected>文件模式 · 仅受限制的读写与编辑</option></select><p class="field-help" id="mode-help">完整代理可使用 Harness 已配置的命令、文件等能力。使用本机权限与 Harness 规则，不是独立的操作系统隔离；浏览器等工具是否可用取决于 Harness 的配置。</p><label for="instruction">你希望完成什么？</label><textarea id="instruction" name="instruction" rows="5" required maxlength="32000" placeholder="例如：读取输入文件，汇总要点并写成中文说明，保存到 output 目录。请检查遗漏并说明检查结果。"></textarea><label for="inputs">输入文件 <span class="muted">（可选，每行一个完整路径）</span></label><textarea id="inputs" name="inputs" rows="3" spellcheck="false" placeholder="D:\my-project\examples\input.txt"></textarea><p class="field-help">仅复制已授权目录内明确列出的普通文件；不支持整个文件夹。请勿提交密钥或凭据文件。</p><details class="advanced"><summary>可选运行上限</summary><div class="form-columns"><div><label for="runtime-limit">最长运行时间（秒）</label><input id="runtime-limit" name="runtime" type="number" min="0" step="1" value="0" required></div><div><label for="tool-limit">最多工具调用次数</label><input id="tool-limit" name="toolCalls" type="number" min="0" step="1" value="0" required></div></div><p class="field-help">0 表示不设置此项上限，任务可运行到完成或手动停止；若服务配置了上限，此处须遵守。长时间没有进展只会提示检查，不会因此自动停止。执行会消耗所配置模型的 API 额度。</p></details><div id="create-error" class="inline-notice danger" role="alert" hidden></div><div class="dialog-footer"><span>执行完成后，请检查实际产物。</span><button type="submit" class="primary" id="submit-button">提交任务</button></div></form></dialog>
+  <dialog id="continue-dialog"><form id="continue-form"><div class="dialog-heading"><div><div class="eyebrow">沿用当前会话与工作目录</div><h2>继续修改</h2></div><button class="icon-button" type="button" data-close="continue-dialog" aria-label="关闭">×</button></div><label for="continue-instruction">补充要求</label><textarea id="continue-instruction" required rows="5" maxlength="32000" placeholder="请具体说明要修改的文件、内容和验收标准。"></textarea><p class="field-help">继续运行会更新任务产物，并重新进入待验收状态。</p><div id="continue-error" class="inline-notice danger" role="alert" hidden></div><div class="dialog-footer"><span>使用当前任务的运行限制。</span><button type="submit" class="primary" id="continue-submit">继续执行</button></div></form></dialog>
+  <dialog id="service-dialog"><div class="dialog-heading"><div><div class="eyebrow">这台电脑上的连接</div><h2>服务与权限说明</h2></div><button class="icon-button" type="button" data-close="service-dialog" aria-label="关闭">×</button></div><div id="health-checks" class="health-checks"></div><p id="health-model" class="muted"></p><div class="info-block"><h3>密钥沿用已有配置</h3><p>连接程序复用 DeepSeek Harness 已保存的凭据，不在本页面收集或显示 API Key。配置检查不能替代一次真实 API 调用。</p><h3>执行能力由任务模式决定</h3><p>启用完整代理后，可使用 Harness 原生能力运行命令、处理项目依赖与执行测试，具体工具取决于 Harness 配置。文件模式只开放受限制的文件读写与编辑。复制进任务目录的输入和产物不会自动合并回原项目。</p><h3>工作目录不等于系统隔离</h3><p>完整代理受本机账户和 Harness 权限约束，并非独立操作系统沙箱；浏览器等能力也不保证开箱可用。请在 Codex 中交代可操作范围。</p><h3>持续运行与活动检查</h3><p>默认不设置时间或工具次数上限，可以按需配置。心跳表示执行监督仍在运行，不代表任务正在取得进展；长工具调用可能暂时没有新事件。疑似停滞仅提示检查，不自动判为卡死。</p></div></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>
