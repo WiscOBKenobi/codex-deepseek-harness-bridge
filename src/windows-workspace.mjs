@@ -19,6 +19,7 @@ function Fail([string]$code) {
   exit 1
 }
 try {
+  Import-Module -Name ([System.IO.Path]::Combine($PSHOME, 'Modules', 'Microsoft.PowerShell.Security', 'Microsoft.PowerShell.Security.psd1')) -ErrorAction Stop
   $request = [Console]::In.ReadToEnd() | ConvertFrom-Json
   if ($request.workspace -isnot [string] -or [string]::IsNullOrWhiteSpace($request.workspace)) { Fail 'WORKSPACE_ACL_PREPARE_FAILED' }
   $workspace = [System.IO.Path]::GetFullPath($request.workspace)
@@ -31,7 +32,7 @@ try {
   }
   $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
   $sid = $identity.User
-  $acl = Get-Acl -LiteralPath $workspace
+  $acl = Microsoft.PowerShell.Security\Get-Acl -LiteralPath $workspace
   if ($acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value -ne $sid.Value) { Fail 'WORKSPACE_OWNER_MISMATCH' }
   $rights = [System.Security.AccessControl.FileSystemRights]::TakeOwnership
   $principals = @($sid.Value, 'S-1-1-0', 'S-1-5-11') + @($identity.Groups | ForEach-Object { $_.Value })
@@ -48,7 +49,7 @@ try {
   }
   $fresh = Get-Item -LiteralPath $workspace -Force
   if (($fresh.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { Fail 'WORKSPACE_ACL_PREPARE_FAILED' }
-  $latestAcl = Get-Acl -LiteralPath $workspace
+  $latestAcl = Microsoft.PowerShell.Security\Get-Acl -LiteralPath $workspace
   if ($latestAcl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value -ne $sid.Value) { Fail 'WORKSPACE_OWNER_MISMATCH' }
   $accessSection = [System.Security.AccessControl.AccessControlSections]::Access
   if ($latestAcl.GetSecurityDescriptorSddlForm($accessSection) -ne $acl.GetSecurityDescriptorSddlForm($accessSection)) { Fail 'WORKSPACE_ACL_PREPARE_FAILED' }
@@ -59,8 +60,8 @@ try {
     [System.Security.AccessControl.PropagationFlags]::None,
     [System.Security.AccessControl.AccessControlType]::Allow)
   $acl.AddAccessRule($rule)
-  Set-Acl -LiteralPath $workspace -AclObject $acl
-  $after = Get-Acl -LiteralPath $workspace
+  Microsoft.PowerShell.Security\Set-Acl -LiteralPath $workspace -AclObject $acl
+  $after = Microsoft.PowerShell.Security\Get-Acl -LiteralPath $workspace
   if ($after.GetOwner([System.Security.Principal.SecurityIdentifier]).Value -ne $sid.Value) { Fail 'WORKSPACE_OWNER_MISMATCH' }
   [Console]::Out.Write('{"ok":true,"status":"updated"}')
 } catch {

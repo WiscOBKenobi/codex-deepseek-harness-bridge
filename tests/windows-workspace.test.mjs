@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
+import { spawn } from 'node:child_process';
 import { mkdtemp, mkdir, rm, symlink, writeFile, readFile, readdir } from 'node:fs/promises';
 import { join, relative, resolve, sep } from 'node:path';
 import { prepareWindowsWorkspace, initializeWindowsTaskWorkspace } from '../src/windows-workspace.mjs';
@@ -321,4 +322,24 @@ test('a release failure cannot replace or expose the original grant preparation 
   const mock = mockInitializer({ failingStage: 'add', disposeFailure: true });
   await assert.rejects(initializeWindowsTaskWorkspace(options, mock.dependencies), fixedFailure('WINDOWS_SANDBOX_PREPARE_FAILED'));
   assert.deepEqual(mock.calls.map(call => call.stage), ['load', 'prepare', 'realpath', 'sid', 'create', 'add', 'dispose']);
+});
+
+test('Windows helper reads ACLs without relying on Security module autoload', { skip: process.platform !== 'win32' }, async t => {
+  const options = await setup(t);
+  const spawnProcess = (executable, args, processOptions) => {
+    const original = args.at(-1);
+    const marker = /(^[ \t]*\$acl = (?:Microsoft\.PowerShell\.Security\\)?Get-Acl -LiteralPath \$workspace)$/mu;
+    assert.match(original, marker);
+    // Stop after the ACL read: this compatibility check never reaches a permission mutation.
+    const readonly = original.replace(marker, "$1\n  [Console]::Out.Write('{\"ok\":true,\"status\":\"unchanged\"}')\n  exit 0");
+    const prefix = String.raw`
+$ErrorActionPreference = 'Stop'
+Import-Module -Name ([IO.Path]::Combine($PSHOME, 'Modules', 'Microsoft.PowerShell.Management', 'Microsoft.PowerShell.Management.psd1'))
+Import-Module -Name ([IO.Path]::Combine($PSHOME, 'Modules', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Utility.psd1'))
+$PSModuleAutoLoadingPreference = 'None'
+`;
+    return spawn(executable, [...args.slice(0, -1), prefix + readonly], processOptions);
+  };
+  const result = await prepareWindowsWorkspace(options, { spawnProcess });
+  assert.equal(result.status, 'unchanged');
 });
