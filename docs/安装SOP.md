@@ -6,7 +6,7 @@
 
 ## 0. 准备条件与目录
 
-你需要可以访问 GitHub 和软件包仓库的网络、自己的 DeepSeek API Key，以及支持本机文件和本地 stdio MCP 的 Codex 客户端。本项目仓库目前是 private；接收者需要仓库访问权限，或者由仓库所有者提供源码包。不要为了下载而把 GitHub 令牌或 API Key 发到聊天里。
+你需要可以访问 GitHub 和软件包仓库的网络、自己的 DeepSeek API Key，以及支持本机文件和本地 stdio MCP 的 Codex 客户端。本项目源码可从 GitHub 下载。不要为了下载而把 GitHub 令牌或 API Key 发到聊天里。
 
 推荐把两个项目放在同一个父目录，互不覆盖：
 
@@ -102,7 +102,7 @@ Test-Path -LiteralPath (Join-Path $harnessHome '.credentials.yaml')
 
 ## 4. 下载本项目，并配置本机
 
-从 [GitHub 仓库](https://github.com/WiscOBKenobi/codex-deepseek-harness) 的 Code → Download ZIP 下载源码并解压，或使用有访问权限的 Git 客户端克隆。选择解压后包含 package.json、README.md 和四个 .cmd 文件的那一层，不要把它放进官方 Harness 内部。
+从 [GitHub 仓库](https://github.com/WiscOBKenobi/codex-deepseek-harness-bridge) 的 Code → Download ZIP 下载源码并解压，或使用有访问权限的 Git 客户端克隆。选择解压后包含 package.json、README.md 和四个 .cmd 文件的那一层，不要把它放进官方 Harness 内部。
 
 双击 **配置本机.cmd**，依次完成：
 

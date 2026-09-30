@@ -40,7 +40,7 @@ Key 由 Harness 保存，本项目通过上面配置的数据目录使用它。*
 | 自己逐步安装 | 希望了解每一步，按顺序准备环境和填写配置。 | [手动安装 SOP](docs/安装SOP.md)：获取两个项目、准备运行环境、构建 Harness、填写自己的 API Key、连接 Codex、验证。 |
 | 让自己的 Agent 安装 | 已有具备本机文件和命令权限的 Codex 或其他编码 Agent。 | [交给 Agent 安装](docs/交给Agent安装.md)：复制安装任务，由 Agent 检查已有环境并完成授权范围内的下载、构建和配置；你在本机 Harness 中填写 Key。 |
 
-两种方式最终安装的是同一套程序。第二种是让 Agent 按步骤执行，不是另一个“一键全包安装器”；本仓库不附带 Node.js、官方 Harness 或任何 API Key。当前仓库为私有仓库，接收者需要仓库访问权限，或由仓库所有者提供的源码包。
+两种方式最终安装的是同一套程序。第二种是让 Agent 按步骤执行，不是另一个“一键全包安装器”；本仓库不附带 Node.js、官方 Harness 或任何 API Key。源码可从 [GitHub 仓库](https://github.com/WiscOBKenobi/codex-deepseek-harness-bridge) 下载。
 
 完成安装后，在 Codex 中打开本项目，创建新任务并加载服务名为 `codex_ds_harness` 的项目 MCP。你可以直接说：“把这个小任务交给 DeepSeek，完成后读取实际文件并独立验收。”**日常无需先双击任何启动文件，也不用先打开本项目面板或原 Harness 网页。** 前提是当前本地客户端已经加载 MCP 配置；普通 ChatGPT 网页不会自动读取你电脑上的项目配置。
 

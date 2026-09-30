@@ -10,7 +10,7 @@ Agent 需要有本机文件、命令执行和网络下载能力；所在客户�
 
 ```text
 请帮我在这台电脑安装 Codex × DeepSeek Harness：
-https://github.com/WiscOBKenobi/codex-deepseek-harness
+https://github.com/WiscOBKenobi/codex-deepseek-harness-bridge
 
 安装目录：选择当前用户可写的独立 AI-Tools 文件夹；如果我已经指定目录或已有兼容安装，优先复用。
 运行模式：agent。我允许 DeepSeek 在本项目新建的独立任务工作区运行命令、安装项目依赖和执行测试；保持原生沙箱，不自动批准需要额外权限的操作。我理解 Windows 不提供完全的读取和网络隔离。
