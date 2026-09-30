@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
 import { startHarness, buildChildEnvironment } from '../src/harness-runner.mjs';
 
-test('official headless registry restricts real tools without making a model request', { timeout: 60000 }, async t => {
+test('official headless registry restricts tools and disables sharing without a model request', { timeout: 60000 }, async t => {
   const harnessRoot = resolve('../DS Harness');
   const entryPath = join(harnessRoot, 'apps/cli/src/bin.ts');
   try { await access(entryPath); await access(join(harnessRoot, 'node_modules/tsx/package.json')); }
@@ -58,5 +58,5 @@ test('official headless registry restricts real tools without making a model req
   let report;
   try { report = JSON.parse(await readFile(reportPath, 'utf8')); }
   catch (error) { assert.fail('Probe did not finish; agent creation stops before a model request. ' + diagnostics); }
-  assert.deepEqual(report, { passed: true, tools: ['edit', 'read', 'write'], modelRequests: 0, guardDenials: 7 });
+  assert.deepEqual(report, { passed: true, tools: ['edit', 'read', 'write'], modelRequests: 0, guardDenials: 7, sessionLogIncluded: false, telemetrySharing: 'disabled' });
 });

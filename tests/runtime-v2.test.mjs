@@ -9,27 +9,29 @@ import { TaskManager } from '../src/task-manager.mjs';
 import { startHarness, createPatch } from '../src/harness-runner.mjs';
 import { createCallBudget } from '../src/harness-budget.mjs';
 
-async function temporary(t) {
+async function temporary(t,beforeRemove) {
   // Harness rejects path aliases; hosted Windows TEMP can use an 8.3 path.
   const base=resolve('.bridge','test-runtime-v2');
   await mkdir(base,{recursive:true});
   const root=await mkdtemp(join(base,'case-'));
-  t.after(async()=>{const part=relative(base,root);assert(part&&part!=='..'&&!part.startsWith('..'+sep));await rm(root,{recursive:true,force:true});});
+  t.after(async()=>{await beforeRemove?.();const part=relative(base,root);assert(part&&part!=='..'&&!part.startsWith('..'+sep));await rm(root,{recursive:true,force:true});});
   return root;
 }
 async function managerFixture(t) {
-  const root=await temporary(t), calls=[];
+  const managers=[],calls=[];
+  const root=await temporary(t,async()=>{for(const manager of managers)await manager.shutdown();});
   const config={root,tasksDir:join(root,'tasks'),readRoots:[root],model:'test-model',defaultMode:'agent',enableNativeAgent:true,maxRuntimeSeconds:0,maxToolCalls:0,stallWarningSeconds:300,maxInputBytes:10000,maxOutputBytes:10000};
-  const manager=await new TaskManager(config,{runner:async options=>{
+  const manager=new TaskManager(config,{runner:async options=>{
     let settle;
     const done=new Promise(resolve=>{settle=resolve;});
     options.onEvent({type:'session',sessionId:options.sessionId??'test-session'});
     const call={...options,settle:value=>settle({status:'succeeded',sessionId:options.sessionId??'test-session',finalText:'done',exitCode:0,toolCalls:0,...value})};
     calls.push(call);
     return {done,cancel:async()=>call.settle({status:'cancelled'})};
-  }}).init();
-  t.after(()=>manager.shutdown());
-  return {root,config,manager,calls};
+  }});
+  managers.push(manager);
+  await manager.init();
+  return {root,config,manager,calls,managers};
 }
 async function until(condition) {
   for(let n=0;n<200;n++){if(await condition())return;await delay(5);}
@@ -129,14 +131,14 @@ test('finite native call budget rejects dispatch after its explicit limit',()=>{
 });
 
 test('legacy file tasks preserve idempotent submission across upgrade and restart',async t=>{
-  const {config}=await managerFixture(t),id=randomUUID(),goal='Legacy task',inputs=[],limits={maxRuntimeSeconds:0,maxToolCalls:0};
+  const {config,managers}=await managerFixture(t),id=randomUUID(),goal='Legacy task',inputs=[],limits={maxRuntimeSeconds:0,maxToolCalls:0};
   const digest=createHash('sha256').update(JSON.stringify({kind:'submit',goal,inputs,limits})).digest('hex');
   const directory=join(config.tasksDir,id),workspace=join(directory,'workspace');
   await mkdir(join(workspace,'input'),{recursive:true});await mkdir(join(workspace,'output'));
   await writeFile(join(directory,'task.json'),JSON.stringify({schemaVersion:1,id,workspace,instruction:goal,inputs,model:'test-model',createdAt:new Date().toISOString(),status:'succeeded',events:[],eventSeq:0,review:{status:'pending'},runs:[{}],requests:{'legacy-1234':digest},limits,sessionId:'original-session'}));
   let launches=0;const runner=async()=>{launches++;throw new Error('Must not restart paid work');};
   for(let pass=0;pass<2;pass++){
-    const restored=await new TaskManager(config,{runner}).init();t.after(()=>restored.shutdown());
+    const restored=new TaskManager(config,{runner});managers.push(restored);await restored.init();
     assert.equal((await restored.submit({instruction:goal,mode:'files',requestId:'legacy-1234'})).id,id);
     await restored.save(restored.getTask(id));await restored.shutdown();
   }

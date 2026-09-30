@@ -32,7 +32,8 @@ async function call(name,args) {
 }
 async function waitForTask(id) {
   let cursor=0;
-  for(let round=0;round<40;round++) {
+  const waitDeadline=Date.now()+4*60_000;
+  while(Date.now()<waitDeadline) {
     const result=await call('get_task',{taskId:id,afterEvent:cursor,waitSeconds:15});
     cursor=result.nextCursor;
     if(result.events.length) console.log(JSON.stringify({taskId:id,status:result.task.status,toolCalls:result.task.toolCalls}));

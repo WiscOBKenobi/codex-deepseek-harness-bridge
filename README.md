@@ -10,7 +10,7 @@ Codex 继续使用你在客户端选择的模型。本项目不会额外调用 C
 
 ### 1. 先在本机安装官方 DeepSeek Harness
 
-请先从 **[DeepSeek Harness 官方 GitHub 仓库](https://github.com/deepseek-ai/deepseek-harness)** 下载并安装。本项目依赖它执行任务，仓库中不附带 Harness 本体。当前对接方式使用已构建的 Harness 源码目录，具体下载、依赖安装和构建步骤见 [手动安装 SOP](docs/安装SOP.md#2-下载并构建官方-harness)；该流程固定了已验证的上游版本。已有兼容安装可以复用。
+请先从 **[DeepSeek Harness 官方 GitHub 仓库](https://github.com/deepseek-ai/deepseek-harness)** 下载并安装。本项目依赖它执行任务，仓库中不附带 Harness 本体。当前对接方式使用已构建的 Harness 源码目录，具体下载、依赖安装和构建步骤见 [手动安装 SOP](docs/安装SOP.md#2-下载并构建官方-harness)；该流程固定到指定上游提交，兼容性以 [验收记录](docs/验收记录.md) 为准。已有兼容安装可以复用，更新时按 [已有安装的升级步骤](docs/安装SOP.md#更新已有-harness) 操作。
 
 也可以把这一步交给自己的本机 Agent，按下面的 Agent 安装流程完成下载、构建和接入。
 
@@ -103,4 +103,4 @@ Key 由 Harness 保存，本项目通过上面配置的数据目录使用它。*
 - [维护约定](AGENTS.md)：开发入口和修改时的验证要求。
 - [验收记录](docs/验收记录.md)：实际执行的验证及未验证范围。
 
-本仓库只包含连接程序、面板、文档和测试；**不打包外部 Harness 的源码、运行环境或凭据**。本机配置、任务记录、复制输入和产物不随源码发布。对接基线为上游提交 [`477b4f420553e8a52c2fbccc464d7561b239c443`](https://github.com/deepseek-ai/deepseek-harness/tree/477b4f420553e8a52c2fbccc464d7561b239c443)，其他版本需重新验证入口和插件兼容性。
+本仓库只包含连接程序、面板、文档和测试；**不打包外部 Harness 的源码、运行环境或凭据**。本机配置、任务记录、复制输入和产物不随源码发布。安装基线为官方 `dsh-v0.2.0-rc.2` 的上游提交 [`639ed015397290b3745d163aafe02ffee4aa3f84`](https://github.com/deepseek-ai/deepseek-harness/tree/639ed015397290b3745d163aafe02ffee4aa3f84)，兼容性以 [验收记录](docs/验收记录.md) 为准；其他版本需重新验证入口和插件兼容性。上游发布新版本不会自动替换本机安装，先查看 [官方发布说明](https://github.com/deepseek-ai/deepseek-harness/releases) 和升级步骤，再在空闲时更新与验收。

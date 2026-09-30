@@ -46,7 +46,8 @@ try {
   }
   let task, cursor = 0;
   const events = [];
-  for (let round = 0; round < 80; round++) {
+  const waitDeadline = Date.now() + 12 * 60_000;
+  while (Date.now() < waitDeadline) {
     const update = await call('get_task', { taskId: state.taskId, afterEvent: cursor, waitSeconds: 15 });
     cursor = update.nextCursor;
     events.push(...update.events);

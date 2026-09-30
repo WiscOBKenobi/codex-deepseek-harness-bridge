@@ -8,12 +8,13 @@ import { atomicJson } from '../src/util.mjs';
 import { randomUUID } from 'node:crypto';
 
 async function fixture(t, runner) {
-  const root = await mkdtemp(join(tmpdir(),'codex-ds-manager-'));
-  t.after(async()=>{ assert(!relative(tmpdir(),root).startsWith('..')); await rm(root,{recursive:true,force:true}); });
+  const root = await mkdtemp(join(tmpdir(),'codex-ds-manager-')), managers=[];
+  t.after(async()=>{ for(const manager of managers)await manager.shutdown(); assert(!relative(tmpdir(),root).startsWith('..')); await rm(root,{recursive:true,force:true}); });
   const config={root,tasksDir:join(root,'tasks'),readRoots:[root],model:'test-model',maxRuntimeSeconds:30,maxToolCalls:10,maxInputBytes:10000,maxOutputBytes:10000};
-  const manager=await new TaskManager(config,{runner}).init();
-  t.after(()=>manager.shutdown());
-  return {manager,config,root};
+  const manager=new TaskManager(config,{runner});
+  managers.push(manager);
+  await manager.init();
+  return {manager,config,root,managers};
 }
 async function terminal(manager,id) {
   for(let count=0;count<150;count++){
@@ -98,12 +99,12 @@ test('invalid paths, secret inputs, unbounded limits and review while running fa
   await assert.rejects(manager.review(a.id,{status:'accepted',note:'x'}),{code:'TASK_NOT_SUCCEEDED'});
 });
 test('restart marks active records interrupted and does not restart paid work',async t=>{
-  const fake=controlledRunner(); const {manager,config}=await fixture(t,fake.runner);
+  const fake=controlledRunner(); const {manager,config,managers}=await fixture(t,fake.runner);
   const id=randomUUID(), workspace=join(config.tasksDir,id,'workspace');
   await mkdir(join(workspace,'output'),{recursive:true});
   const record={schemaVersion:1,id,workspace,instruction:'恢复',inputs:[],model:'test-model',createdAt:new Date().toISOString(),status:'running',events:[],eventSeq:0,review:{status:'pending'},runs:[{}],requests:{},limits:{maxRuntimeSeconds:30,maxToolCalls:10},sessionId:'previous-session'};
   await atomicJson(join(config.tasksDir,id,'task.json'),record);
-  const restarted=await new TaskManager(config,{runner:fake.runner}).init(); t.after(()=>restarted.shutdown());
+  const restarted=new TaskManager(config,{runner:fake.runner});managers.push(restarted);await restarted.init();
   assert.equal((await restarted.get(id)).task.status,'interrupted'); assert.equal((await restarted.get(id)).task.mode,'files'); assert.equal(fake.calls.length,0);
   await restarted.continue(id,{instruction:'已核对文件，请继续'});
   await started(fake.calls); assert.equal(fake.calls[0].sessionId,'previous-session'); assert.equal(fake.calls[0].mode,'files'); fake.calls[0].finish(); await terminal(restarted,id);
