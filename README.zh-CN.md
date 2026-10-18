@@ -4,14 +4,14 @@
 
 **现已支持 DeepSeek-V4.1-Flash-1017。** 在 DeepSeek 官方公布的 **DeepSWE v1.1 性能/费用对比**中，Flash 1017 的 max 档达到 **77.0% Pass@1**，高于图中 GPT-6 Astra 各档配置，同时每项任务的报告费用更低。评测条件见[官方 10 月 17 日发布说明](https://api-docs.deepseek.com/zh-cn/news/news261017/)。
 
-[![DeepSeek 官方 Flash 1017 在 DeepSWE v1.1 上的性能与费用对比](https://api-docs.deepseek.com/zh-cn/img/v4.1_261017_perf_cost_cn.png)](https://api-docs.deepseek.com/zh-cn/news/news261017/)
+[![DeepSeek 官方 Flash 1017 在 DeepSWE v1.1 上的性能与费用对比](docs/assets/flash-1017-performance.zh-CN.png)](https://api-docs.deepseek.com/zh-cn/news/news261017/)
 
 <details>
 <summary>展开更多官方能力评测结果</summary>
 
-[![DeepSeek 官方 Flash 1017 能力对比表](https://api-docs.deepseek.com/zh-cn/img/v4.1_261017_benchmark_table_cn.png)](https://api-docs.deepseek.com/zh-cn/news/news261017/)
+[![DeepSeek 官方 Flash 1017 能力对比表](docs/assets/flash-1017-benchmarks.zh-CN.png)](https://api-docs.deepseek.com/zh-cn/news/news261017/)
 
-[官方模型卡及评测说明](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017)。图表由 DeepSeek 官方托管。
+[官方模型卡及评测说明](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017)。图表为 DeepSeek 官方原图，按原样收录并保留来源链接。
 
 </details>
 

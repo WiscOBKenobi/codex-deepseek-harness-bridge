@@ -6,14 +6,14 @@
 
 **Now supporting DeepSeek-V4.1-Flash-1017.** In DeepSeek's official **DeepSWE v1.1** performance/cost chart, Flash 1017 reaches **77.0% Pass@1 at max effort**, above the plotted GPT-6 Astra configurations at a lower reported cost per task. See the [official October 17 announcement](https://api-docs.deepseek.com/news/news261017/) for the evaluation and settings.
 
-[![DeepSeek's official Flash 1017 performance and cost comparison on DeepSWE v1.1](https://api-docs.deepseek.com/img/v4.1_261017_perf_cost_en.png)](https://api-docs.deepseek.com/news/news261017/)
+[![DeepSeek's official Flash 1017 performance and cost comparison on DeepSWE v1.1](docs/assets/flash-1017-performance.en.png)](https://api-docs.deepseek.com/news/news261017/)
 
 <details>
 <summary>More official benchmark results</summary>
 
-[![Official DeepSeek-V4.1-Flash-1017 benchmark comparison](https://api-docs.deepseek.com/img/v4.1_261017_benchmark_table_en.png)](https://api-docs.deepseek.com/news/news261017/)
+[![Official DeepSeek-V4.1-Flash-1017 benchmark comparison](docs/assets/flash-1017-benchmarks.en.png)](https://api-docs.deepseek.com/news/news261017/)
 
-[Official model card and evaluation notes](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017). Charts are hosted by DeepSeek.
+[Official model card and evaluation notes](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017). Original charts by DeepSeek, reproduced unchanged from its official release.
 
 </details>
 
