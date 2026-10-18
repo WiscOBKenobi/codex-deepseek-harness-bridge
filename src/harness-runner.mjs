@@ -48,6 +48,10 @@ export function buildChildEnvironment(config, inherited = process.env) {
 
 export function createPatch(config, workspace, limits, mode = 'files') {
   const patch = [
+    // Headless 0.2.1 omits stored authentication; restore the official GUI credential composition.
+    { id: 'credentials', disabled: false },
+    { id: 'authorization', disabled: false },
+    { id: 'deepseek-account', disabled: false },
     { id: 'session-log-deepseek', config: { enabled: false } },
     { id: 'agent-default-model', config: { provider: config.provider, model: config.model, reasoningEffort: config.reasoningEffort } },
     { id: 'tools', config: { mode: 'native' } },

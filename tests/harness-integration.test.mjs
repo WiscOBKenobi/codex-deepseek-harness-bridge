@@ -29,6 +29,8 @@ test('official headless registry restricts tools and disables sharing without a 
   const config = { harnessRoot, harnessHome: join(taskDir, 'harness-home'), nodePath: process.execPath,
     entryPath: resolve('tests/fixtures/harness-child.mjs'), provider: 'deepseek-official', model: 'deepseek-flash',
     reasoningEffort: 'max', maxInputBytes: 10000, maxOutputBytes: 10000 };
+  await mkdir(config.harnessHome, { recursive: true });
+  await writeFile(join(config.harnessHome, '.credentials.yaml'), 'version: 1\nrefs:\n  BRIDGE_TEST_REFERENCE: synthetic-placeholder\n', { mode: 0o600 });
   const warmup = await startHarness({ config, workspace, taskDir, prompt: '{}', limits: { maxRuntimeSeconds: 10, maxToolCalls: 30 } });
   assert.equal((await warmup.done).status, 'succeeded');
   const patchPath = join(taskDir, (await readdir(taskDir)).find(path => path.endsWith('.patch.json')));
@@ -58,5 +60,5 @@ test('official headless registry restricts tools and disables sharing without a 
   let report;
   try { report = JSON.parse(await readFile(reportPath, 'utf8')); }
   catch (error) { assert.fail('Probe did not finish; agent creation stops before a model request. ' + diagnostics); }
-  assert.deepEqual(report, { passed: true, tools: ['edit', 'read', 'write'], modelRequests: 0, guardDenials: 7, sessionLogIncluded: false, telemetrySharing: 'disabled' });
+  assert.deepEqual(report, { passed: true, tools: ['edit', 'read', 'write'], modelRequests: 0, guardDenials: 7, sessionLogIncluded: false, telemetrySharing: 'disabled', storedCredentialSource: 'file' });
 });

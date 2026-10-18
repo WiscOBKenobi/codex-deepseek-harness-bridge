@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync, linkSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 export const name = 'bridge-keyless-probe';
-export const inject = ['tools', 'agents', 'llm', 'deepseekLlmApiExtensions', 'sessionTelemetry'];
+export const inject = ['tools', 'agents', 'llm', 'deepseekLlmApiExtensions', 'sessionTelemetry', 'credentials'];
 export function apply(ctx, config) {
   let modelRequests = 0;
   const startedAt = Date.now(), phases = [];
@@ -43,6 +43,11 @@ export function apply(ctx, config) {
     }
     assert.equal(readFileSync(join(config.workspace, '..', 'outside.txt'), 'utf8'), 'untouched');
     assert.equal(readFileSync(join(config.workspace, 'input', 'source.txt'), 'utf8'), 'copied input');
+    trace('checking_stored_credentials');
+    const credential = await ctx.credentials?.describe('BRIDGE_TEST_REFERENCE');
+    assert.equal(credential?.configured, true, 'Headless must retain Harness-managed stored authentication.');
+    const storedCredentialSource = credential.source;
+    assert.equal(storedCredentialSource, 'file');
     trace('checking_privacy');
     const prepared = await ctx.deepseekLlmApiExtensions.prepare({
       body: { model: 'deepseek-flash', messages: [] }, sessionId: agent.session.id,
@@ -53,7 +58,7 @@ export function apply(ctx, config) {
     const telemetrySharing = ctx.sessionTelemetry.sharing;
     assert.equal(telemetrySharing, 'disabled');
     writeFileSync(config.reportPath, JSON.stringify({ passed: true, tools, modelRequests, guardDenials: 7,
-      sessionLogIncluded, telemetrySharing }) + '\n');
+      sessionLogIncluded, telemetrySharing, storedCredentialSource }) + '\n');
     trace('probe_completed');
     throw new Error('BRIDGE_KEYLESS_PROBE_COMPLETE');
   });

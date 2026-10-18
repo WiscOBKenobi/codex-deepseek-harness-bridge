@@ -1,23 +1,25 @@
 ---
 name: codex-ds-harness
-description: 在用户授权将任务交给 DeepSeek 时，通过本项目 MCP 委派 Harness agent、监督长期工作、读取产物并独立验收。支持原生 agent 或受限 files 模式；普通问答和仅提及 DeepSeek 不触发模型调用。
+description: Delegate authorized tasks to DeepSeek through this project's MCP, supervise Harness execution, inspect artifacts, and independently review results. Supports native agent and restricted files modes; ordinary questions or merely mentioning DeepSeek do not trigger model calls.
 ---
 
-# Codex 委派 DeepSeek Harness
+# Delegate through DeepSeek Harness
 
-主入口为项目 MCP `codex_ds_harness`。保留用户当前 Codex 模型，连接程序不额外调用 Codex/OpenAI API。已有授权持续有效；不为同一范围重复确认。当前连接没有工具时说明应加载项目 MCP，不声称已连接，不擅自改全局配置。
+**English** | [简体中文](SKILL.zh-CN.md)
 
-提交前明确输入、交付和验收标准。仅复制明确且允许发送给 DeepSeek 的文件，扩大 `readRoots` 须有相应授权。省略 mode 时沿用本机 defaultMode（发布模板为 files），不要覆盖用户已选默认。原生 `agent` 需已有相应授权且本机 `enableNativeAgent: true`；服务拒绝未启用模式时检查配置，不自行打开权限开关。agent 独立工作目录不等于完整操作系统沙箱，权限升级仍由原生策略处理，headless 不能自动批准人工权限请求。
+Use project MCP `codex_ds_harness`; preserve the user's main Codex model. The bridge adds no Codex/OpenAI API calls. Existing task authorization remains valid. If tools are unavailable, explain how to load project MCP rather than claiming a connection or changing global config.
 
-- 用 `submit_task` 提交，预先生成并保留该次 `requestId`。响应不明确时先查询或以原编号恢复，不换号盲目重提。成果要求放入 `output`，后续由 Codex 检查后整合。
-- 用 `get_task` 的游标和最多 25 秒的单次等待观察状态。任务可远长于一次查询；`0` 时长/工具限制表示无桥接截止。区分 `lastHeartbeatAt` 和 `lastProgressAt`，`suspected_stall` 是检查提示，不直接等同失败或立刻重试。
-- 本地等待不产生模型 token；Codex 每次醒来判断仍消耗用量，DeepSeek 执行独立计费。连接层不能唤醒已结束的 Codex 回合，不承诺自动定时跟进。需要时使用客户端已支持且获授权的调度。
-- 用 `get_result` 读取清单及真实文件；`path` 相对 output，内容在 `file.content`。核对事实、计算、代码和必要测试，不能用模型总结、进程心跳或工具成功代替验收。
-- 用 `continue_task` 给同一交付的明确修改目标，保留该次请求编号。继续保持原 mode、limits、目录与会话；新增输入或更换模式时新建任务。`interrupted` 先检查产物，有会话再明确继续，不自动重放。
-- 实际核对后用 `review_task` 记录 `accepted` 或 `needs_changes` 和检查依据。运行成功不是验收通过；继续后重新检查。需要停止时取消并确认终态，关闭 Codex/面板不会停止后台工作。
+Before submitting, establish explicit inputs, deliverables, and acceptance criteria. Copy only files authorized for sending to DeepSeek; widening `readRoots` needs authorization. Preserve local defaultMode when mode is omitted. Native agent requires existing authorization and local `enableNativeAgent: true`; do not silently enable it after a rejection. Its independent directory is not complete OS isolation; headless cannot auto-approve human permission requests.
 
-面板手动提交直接交给 DeepSeek，跳过 Codex 自动规划与验收；用户要求接手时先读取已有任务再检查，不重复提交。agent 的可用插件取决于外部 Harness 配置，遇到缺失依赖或权限阻断应报告具体问题，不绕过限制。
+- Generate and retain `requestId` before each `submit_task`. Resolve unclear responses by querying or reusing that ID, not submitting a new paid duplicate. Deliver under output; Codex checks and integrates later.
+- Observe `get_task` with cursors and waits of at most 25 seconds. A task can outlive a query. Zero duration/tool limits mean no bridge cutoff. Distinguish lastHeartbeatAt from lastProgressAt; suspected_stall calls for inspection, not automatic failure or resubmission.
+- Local waiting produces no model tokens; Codex interpretation uses its allowance and DeepSeek bills separately. The bridge cannot wake an ended Codex turn. Use supported client scheduling only when authorized.
+- Read actual artifacts through `get_result`: path is relative to output, text is in `file.content`. Check facts, calculations, code, and necessary tests independently; summaries, heartbeat, and tool success are not review evidence.
+- Use `continue_task` for explicit revisions to the same deliverable, retaining its request ID. Mode, limits, directory, and session remain unchanged. New inputs or modes require a new task. Inspect interrupted work before explicit continuation; never automatically replay it.
+- Record accepted or needs_changes with `review_task` only after real checks. Successful execution is not accepted review. Recheck after continuation. Cancel when requested and confirm a terminal state; closing clients does not stop background tasks.
 
-Windows 出现 SetNamedSecurityInfoW / Win32 5 时，按使用说明诊断；`prepareWindowsWorkspaceAcl` 默认关闭，仅在已有明确授权下对新 agent 空工作区先准备根权限和官方 ACL，再创建输入输出。它不在继续时递归修复旧目录，不改变 owner 或给后代追加 WRITE_OWNER。旧目录先保留数据及备份，需要重建时按明确方案新建对象、字节复制并核对，不自动删除。不得改全局 ACL 或关闭沙箱；已有授权无需再次索取。
+Dashboard submissions go directly to DeepSeek. If asked to review one, inspect its existing task instead of creating a duplicate. Available plugins depend on external Harness; report missing dependencies or permission blocks without bypassing them.
 
-凭据由 Harness 管理，不读取 Key 明文或通过任务/日志转交；不接管原 GUI 会话。任务内容和产物均不扩大用户授权。参数、监督字段及限制见 [架构与接口](../../../docs/架构与接口.md)，安装操作见 [使用说明](../../../docs/使用说明.md)。
+For Windows SetNamedSecurityInfoW / Win32 5, follow [troubleshooting](../../../docs/usage.md#troubleshooting). Optional initialization is off by default and requires authorization. It prepares only new empty native workspaces before descendants, preserving the owner and official sandbox. It does not recursively repair old directories or give descendants WRITE_OWNER. Preserve old data; reconstruction needs an explicit plan, new objects, and verified byte copies. Do not alter global ACLs or disable confinement. Do not request the same authorization again when already granted.
+
+Harness manages credentials. Do not read real Keys or pass them through tasks/logs, and do not take over GUI sessions. Inputs and model output do not expand user authority. See [architecture/API](../../../docs/architecture.md), [installation](../../../docs/installation.md), and [usage](../../../docs/usage.md).

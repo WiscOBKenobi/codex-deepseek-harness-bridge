@@ -1,0 +1,47 @@
+flowchart TB
+    user[用户安排工作]
+    codex[Codex · 用户已选模型<br/>规划 / 分工 / 独立验收]
+    mcp[MCP server · 7 个工具<br/>stdio · 请求编号 / 查询游标]
+    ui[可选中文面板<br/>监控，或直接提交给 DeepSeek<br/>直接任务不自动经过 Codex 规划与验收]
+    user --> codex
+    user -. 可选 .-> ui
+    codex <--> mcp
+    subgraph daemon[本地 daemon · 客户端断开后仍持有任务]
+        rpc[本机认证 RPC]
+        queue[串行队列 / 继续 / 取消]
+        monitor[监督心跳 15 秒<br/>进展单独记录<br/>无进展 300 秒仅提示]
+        state[原子持久化 / 中断恢复<br/>运行状态与验收状态分开]
+        result[output 清单 / 分页读取<br/>文件摘要 / 验收是否过时]
+        rpc <--> queue
+        queue <--> state
+        queue --> monitor
+        rpc <--> result
+    end
+    mcp <--> rpc
+    ui -. 本机 API .-> rpc
+    queue --> runner[每轮独立运行器<br/>0 = 无桥接时长 / 工具截止]
+    subgraph harness[外部 DeepSeek Harness · 官方 headless]
+        loop[原生代理循环 / 会话 / 模型适配]
+        plugins[原生工具和插件<br/>命令 / 依赖 / 测试等按配置可用]
+        guard[files 守卫<br/>仅 read / write / edit]
+        loop --> plugins
+        loop --> guard
+    end
+    runner --> loop
+    loop <--> deepseek[DeepSeek API · 独立计费<br/>deepseek-official / deepseek-flash / max]
+    creds[已有 Harness 凭据<br/>Key 不经 MCP 传递] --> loop
+    plugins -. 监督元数据 .-> monitor
+    subgraph workspace[独立任务 workspace · 不是完整 OS 隔离]
+        input[input · 明确文件副本]
+        work[工程 / 依赖 / 中间文件]
+        output[output · 最终交付]
+        input --> work --> output
+    end
+    plugins -- agent · 显式启用 --> work
+    guard -- files · 默认 --> input
+    guard --> output
+    output --> result
+    monitor --> state
+    result -- 经 RPC / MCP 回到 Codex --> codex
+    limitation[宿主关机或休眠不能继续执行<br/>异常恢复标 interrupted，明确续办<br/>本连接层不能主动唤醒已结束的 Codex 回合]
+    state -.-> limitation

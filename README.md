@@ -1,106 +1,114 @@
 # Codex × DeepSeek Harness
 
-**让 Codex 负责规划和验收，让 DeepSeek 通过本机 Harness 执行你委派的任务。** 你仍然在 Codex 中提出需求；需要分工时，Codex 通过本项目提供的 MCP 接口，把指定任务交给 DeepSeek，例如整理文件、生成代码，或在已启用的编码模式下运行命令和测试。DeepSeek 通过官方 Harness 的工具操作独立任务目录，Codex 再读取实际产物、检查结果并整合到你的工作中。
+**English** | [简体中文](README.zh-CN.md)
 
-本项目提供连接两者所需的本地后台：接收任务、管理队列、保存执行状态和产物，并让 Codex 查询进度、取消任务或要求继续修改。附带网页面板用于查看进度或手动提交，日常通过 Codex 委派时无需打开它。
+**Keep Codex in charge. Let DeepSeek do the delegated work.** This local MCP bridge lets Codex plan a task, send selected work to the official DeepSeek Harness, inspect the actual files, and independently review the result. Your selected Codex model stays in place; delegated work uses your own DeepSeek API account.
 
-Codex 继续使用你在客户端选择的模型。本项目不会额外调用 Codex 或 OpenAI API，也不会替换主模型；委派任务使用你自己的 DeepSeek API，费用由 DeepSeek 单独收取。
+**Now supporting DeepSeek-V4.1-Flash-1017.** In DeepSeek's official **DeepSWE v1.1** performance/cost chart, Flash 1017 reaches **77.0% Pass@1 at max effort**, above the plotted GPT-6 Astra configurations at a lower reported cost per task. See the [official October 17 announcement](https://api-docs.deepseek.com/news/news261017/) for the evaluation and settings.
 
-## 使用前需要准备什么
+[![DeepSeek's official Flash 1017 performance and cost comparison on DeepSWE v1.1](https://api-docs.deepseek.com/img/v4.1_261017_perf_cost_en.png)](https://api-docs.deepseek.com/news/news261017/)
 
-### 1. 先在本机安装官方 DeepSeek Harness
+<details>
+<summary>More official benchmark results</summary>
 
-请先从 **[DeepSeek Harness 官方 GitHub 仓库](https://github.com/deepseek-ai/deepseek-harness)** 下载并安装。本项目依赖它执行任务，仓库中不附带 Harness 本体。当前对接方式使用已构建的 Harness 源码目录，具体下载、依赖安装和构建步骤见 [手动安装 SOP](docs/安装SOP.md#2-下载并构建官方-harness)；该流程固定到指定上游提交，兼容性以 [验收记录](docs/验收记录.md) 为准。已有兼容安装可以复用，更新时按 [已有安装的升级步骤](docs/安装SOP.md#更新已有-harness) 操作。
+[![Official DeepSeek-V4.1-Flash-1017 benchmark comparison](https://api-docs.deepseek.com/img/v4.1_261017_benchmark_table_en.png)](https://api-docs.deepseek.com/news/news261017/)
 
-也可以把这一步交给自己的本机 Agent，按下面的 Agent 安装流程完成下载、构建和接入。
+[Official model card and evaluation notes](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017). Charts are hosted by DeepSeek.
 
-### 2. 配置 Harness 的安装目录和数据目录
+</details>
 
-**需要提供本机的实际目录。** 双击本项目的 `配置本机.cmd` 选择以下两个文件夹，或把路径告诉负责安装的 Agent；配置工具会保存路径，无需自己编辑配置文件。
+As checked on October 18, 2026, the official API name `deepseek-flash` serves **V4.1-Flash-1017**; the bridge keeps `deepseek-official / deepseek-flash / max`. A Key authenticates your account; the configured model selects what runs. See [official model mapping](https://api-docs.deepseek.com/quick_start/pricing/) and [model configuration](docs/usage.md#model-and-credentials).
 
-| 配置项 | 选择哪个目录 |
+## What this project does
+
+You describe work in Codex. When you authorize delegation, Codex submits a bounded task through seven MCP tools. The bridge copies explicitly selected inputs into an independent workspace, starts the official Harness in headless mode, persists progress and outputs, and supports cancellation and follow-up instructions. Codex reads the delivered files, checks them, and decides how to integrate them into your project.
+
+The bridge adds a local queue, supervision, result access, and review records. It reuses the official Harness agent loop, tools, sessions, and credential management. It makes no additional Codex/OpenAI API calls. DeepSeek charges separately for delegated execution.
+
+The included **Chinese-language dashboard is optional**: use it to watch tasks or submit work directly. Direct dashboard submissions need your own review or a later explicit Codex review.
+
+## Before you start
+
+### 1. Install the official DeepSeek Harness locally
+
+Download and build [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) first. This repository does not bundle it. The integration uses a **built source checkout**, not an arbitrary desktop application directory. The current tested baseline is official **`dsh-v0.2.1-rc.2`**, commit [`687f282e8625c6b8d11ff58211a90524be2e4317`](https://github.com/deepseek-ai/deepseek-harness/tree/687f282e8625c6b8d11ff58211a90524be2e4317), a pre-release.
+
+Follow the [manual installation SOP](docs/installation.md) or let your local coding agent follow the [agent installation guide](docs/agent-setup.md). Reuse an existing compatible installation. For an upgrade, follow the [existing installation procedure](docs/installation.md#upgrading-an-existing-harness); see the [October 18 compatibility report](docs/upgrade-20261018.md).
+
+### 2. Provide the installation and data directories
+
+Configure these paths once using `配置本机.cmd` or the setup command in the SOP:
+
+| Setting | Directory to select |
 | --- | --- |
-| `harnessRoot`：安装目录 | 官方 Harness 的源码根目录，即包含 `package.json` 和 `apps/cli` 的那一层。 |
-| `harnessHome`：数据目录 | 这份 Harness 实际使用、保存设置与 API 凭据的目录，必须与填写 Key 时使用的 `DSH_HOME` 一致。 |
+| `harnessRoot` | The official Harness source root containing `package.json` and `apps/cli`. |
+| `harnessHome` | The actual data directory used when saving your Key: the same `DSH_HOME` as the official UI. |
 
-本项目安装 SOP 使用 Harness 目录下的 `.local/dsh-home` 作为数据目录；如果复用原有安装，请选择它实际使用的位置。上游在未指定 `DSH_HOME` 时默认使用用户目录下的 `.dsh`。这里只需要选择目录，不需要打开凭据文件或复制其中的 Key。
+The SOP uses `<Harness>/.local/dsh-home`. An existing installation may use another location; upstream defaults to `~/.dsh` when `DSH_HOME` is unset. Select the directory without opening its credential file. The saved paths are reused; you do not repeat them for each task. Other projects need access to a loaded MCP configuration—see [using another project](docs/usage.md#using-another-project).
 
-### 3. 准备自己的 DeepSeek API Key，并在 Harness 中填写
+### 3. Create your own API Key and enter it in Harness
 
-使用者需要自己的 DeepSeek 开放平台账号、API Key 和可用的 API 余额。请前往 **[DeepSeek 官方开放平台](https://platform.deepseek.com/)** 登录，**[创建自己的 API Key](https://platform.deepseek.com/api_keys)**，并按需 **[充值 API 余额](https://platform.deepseek.com/top_up)**。本项目不提供 Key 或调用额度。
+Sign in to the [DeepSeek platform](https://platform.deepseek.com/), [create an API Key](https://platform.deepseek.com/api_keys), and [add API credit](https://platform.deepseek.com/top_up) as needed. This project supplies neither Keys nor credit.
 
-取得 Key 后，在本机 **官方 Harness 的界面**中填写：首次使用时选择“添加 API Key”，填入后“保存并继续”；已有配置则进入 **设置 / Settings → 模型 / Models → DeepSeek（`deepseek-official`）→ 编辑 / Edit → API 密钥 / API key → 保存 / Apply**。具体操作见 [填写 API Key 的步骤](docs/安装SOP.md#3-打开-harness并亲自填写-api-key)。
+Enter the Key yourself in the **official Harness UI**: the first-run **Add API Key** form, or **Settings → Models → DeepSeek (`deepseek-official`) → Edit → API key → Apply**. The bridge uses that same Harness home. Its per-task overlay restores stored authentication in the new headless profile, so there is no second Key field to fill in.
 
-Key 由 Harness 保存，本项目通过上面配置的数据目录使用它。**不要把 Key 填进 Codex 对话、本项目的 `config.json` 或 GitHub 文件。** 完成配置后，无需一直开着 Harness 设置网页，Codex 委派任务时会按需启动执行进程。
+**Do not put your Key in a Codex conversation, this repository's `config.json`, MCP arguments, or GitHub files.** After saving it, the settings webpage need not remain open.
 
-## 先选择安装方式
+## Choose an installation route
 
-| 方式 | 适合谁 | 按哪份说明操作 |
-| --- | --- | --- |
-| 自己逐步安装 | 希望了解每一步，按顺序准备环境和填写配置。 | [手动安装 SOP](docs/安装SOP.md)：获取两个项目、准备运行环境、构建 Harness、填写自己的 API Key、连接 Codex、验证。 |
-| 让自己的 Agent 安装 | 已有具备本机文件和命令权限的 Codex 或其他编码 Agent。 | [交给 Agent 安装](docs/交给Agent安装.md)：复制安装任务，由 Agent 检查已有环境并完成授权范围内的下载、构建和配置；你在本机 Harness 中填写 Key。 |
+| Route | What you do |
+| --- | --- |
+| [Manual SOP](docs/installation.md) | Prepare tools, build Harness, enter your Key, configure MCP, and verify step by step. |
+| [Let your agent install it](docs/agent-setup.md) | Copy the installation prompt. Your local agent checks existing tools and performs the authorized download, build, setup, and checks; you enter your Key privately. |
 
-两种方式最终安装的是同一套程序。第二种是让 Agent 按步骤执行，不是另一个“一键全包安装器”；本仓库不附带 Node.js、官方 Harness 或任何 API Key。源码可从 [GitHub 仓库](https://github.com/WiscOBKenobi/codex-deepseek-harness-bridge) 下载。
+Both routes install the same software. The setup script configures an existing installation; it is not an installer containing Node, Harness, and model access.
 
-完成安装后，在 Codex 中打开本项目，创建新任务并加载服务名为 `codex_ds_harness` 的项目 MCP。你可以直接说：“把这个小任务交给 DeepSeek，完成后读取实际文件并独立验收。”**日常无需先双击任何启动文件，也不用先打开本项目面板或原 Harness 网页。** 前提是当前本地客户端已经加载 MCP 配置；普通 ChatGPT 网页不会自动读取你电脑上的项目配置。
+Once the local client has loaded `codex_ds_harness`, say:
 
-新增配置不保证热加载到已有 Codex 任务。工具不可用时，按客户端提示处理项目信任，并在本项目新任务中加载。项目技能位于 [.agents/skills/codex-ds-harness/SKILL.md](.agents/skills/codex-ds-harness/SKILL.md)，使用与排障见 [详细使用说明](docs/使用说明.md)。
+> Delegate this small task to DeepSeek through the Harness MCP. State the inputs and acceptance criteria, read the actual output files, and independently verify the result before integrating it.
 
-![Codex 与 DeepSeek Harness 架构](docs/architecture.svg)
+Daily use requires **no manual start command and no open dashboard**. A normal ChatGPT webpage does not automatically load a computer's project MCP configuration. New configuration may require a trusted project and a new chat or client reload.
 
-[可编辑 Mermaid 图](docs/architecture.mmd) · [架构与接口](docs/架构与接口.md)
+## Architecture
 
-## 它什么时候启动
+![Codex and DeepSeek Harness architecture](docs/architecture.svg)
 
-1. 本地客户端加载项目 MCP 时，由客户端启动 MCP 接口进程。
-2. Codex 首次调用提交、列出或查询任务等有效工具时，接口按需启动或连接本项目的后台服务。后台负责队列、进度和结果保存。
-3. 某项任务实际开始运行时，后台才为它启动独立 Harness headless 进程，并通过 Harness 使用 DeepSeek API。闲置后台不会自行向模型发请求。
+[Architecture and seven-tool API](docs/architecture.md) · [Editable Mermaid](docs/architecture.mmd) · [中文架构](docs/架构与接口.md)
 
-因此，“后台服务已启动”不表示“DeepSeek 正在做任务”。关闭网页或断开 MCP 也不会自动停止已提交的后台任务。完整生命周期见 [使用说明](docs/使用说明.md#7-关闭取消继续与验收)。
+## Modes and lifecycle
 
-## 两种执行模式
+| Mode | Scope |
+| --- | --- |
+| `files` — distribution default | `read`, `write`, and `edit`; reads task `input/output`, writes only `output`. |
+| `agent` — explicit opt-in | Native Harness tools for coding, commands, permitted project dependencies, and tests in a task workspace. Available plugins depend on your Harness installation. |
 
-| 模式 | 用途 | 能力与范围 |
-| --- | --- | --- |
-| `agent`，需显式启用 | 编码、依赖安装、运行测试、分析和多步骤工作。 | 使用 Harness 原生工具和插件，在独立任务工作目录运行；具体能力取决于已安装和配置的 Harness。 |
-| `files`，默认 | 只需指定文件的整理、转换和草稿。 | 只开放 `read`、`write`、`edit`；读取任务 `input/output`，只写 `output`。 |
+The template has `enableNativeAgent: false`. Enable native coding only with appropriate authorization; `defaultMode` selects the mode when omitted. Both modes deliver through `output`; the bridge never automatically applies files to your original project. Windows native isolation is partial, and headless cannot automatically approve requests requiring human approval.
 
-发布默认使用 files，`enableNativeAgent` 默认为 false。需要原生编码能力时，明确授权并在本机配置启用 agent；默认配置不会开放这些工具。`defaultMode` 决定省略 mode 的选择，启用 agent 后也可以保持 files 为默认。
+The client starts MCP; the first valid task operation starts or connects to the local daemon; each executing task gets a separate Harness process. Idle services do not generate model requests. Closing Codex or the dashboard does not cancel submitted work. Use `cancel_task` for one task; stopping the service ends active work and cancels queued tasks.
 
-输入按明确清单复制；工作成果留在任务 `output`。`agent` 可以在任务工作目录中建立工程与临时文件，只有 `output` 进入交付清单。两种模式都不会由连接程序自动将产物写回原项目，Codex 应先核验再整合。
+By default, `maxRuntimeSeconds=0` and `maxToolCalls=0` impose no bridge duration or tool-count cutoff. Completion still ends the task. The template separately caps cumulative protocol output at 4 MiB; `maxStreamBytes: 0` removes that cumulative cap while keeping per-message and deliverable checks. A 15-second heartbeat is separate from progress; 300 seconds without recognized progress produces a warning, not an automatic kill.
 
-`agent` 沿用 Harness 原生权限策略，Windows 仅有部分系统隔离；独立目录不等于完整沙箱。后台入口遇到需要人工批准的权限请求时会拒绝继续，不自动批准。浏览器、搜索、子代理等插件也不保证无需配置即可使用。
+Local waiting does not itself generate model tokens. Codex's interpretation and decisions consume its usage; DeepSeek execution is billed separately. This bridge cannot wake an ended Codex turn. Client scheduling is needed for automatic follow-up. Shutdown and sleep prevent continued execution; interrupted tasks require explicit review and continuation.
 
-## 持续运行与监督
+## Windows shortcuts
 
-默认 `maxRuntimeSeconds=0`、`maxToolCalls=0`，表示连接层不按时长或工具次数截断任务；任务正常完成仍会结束。可为具体任务设定有限上限。发布模板仍有 4 MiB 累计协议流限制；长期任务可显式设 `maxStreamBytes: 0`，单条消息和 output 交付检查继续保留。
+| File | Purpose |
+| --- | --- |
+| `配置本机.cmd` | First-time path configuration; may install bridge dependencies. Does not download Harness or Node. |
+| `检查环境.cmd` | Check local paths and prerequisites; does not validate Key or account balance. |
+| `打开任务面板.cmd` | Open the optional dashboard and start the daemon if needed. |
+| `停止任务服务.cmd` | Stop this bridge's service, active tasks, and queued work. |
 
-后台服务每 15 秒记录监督心跳，默认 300 秒没有可识别进展时提示“疑似停滞”，不会因此直接终止任务。心跳只表示监督进程仍在响应，不代表模型持续取得进展。
+These are setup and maintenance shortcuts. The seven MCP tools do not include global service shutdown; a main agent with local command access can use the maintenance entry point. A later task operation starts the service again. Disable MCP as well if you want to stop using the integration entirely.
 
-关闭 Codex 或网页不会自动结束后台工作；停止任务服务会结束其活动任务并取消排队任务。电脑休眠时无法持续执行，关机后也不能继续运行；异常重启会将遗留任务标为 `interrupted`，由用户或 Codex 检查后明确继续，不自动无限重试。
+## Documentation
 
-本地等待和心跳不会自行生成模型 token。Codex 醒来理解状态、判断是否返工时仍消耗自身用量，DeepSeek 执行另行计费。连接层不能主动唤醒已经结束的 Codex 回合；需要持续自动跟进时，须由客户端提供调度，本项目未实现这种唤醒服务。
+- [Manual installation](docs/installation.md) / [中文](docs/安装SOP.md)
+- [Agent installation prompt](docs/agent-setup.md) / [中文](docs/交给Agent安装.md)
+- [Daily use, model selection, and troubleshooting](docs/usage.md) / [中文](docs/使用说明.md)
+- [Architecture and API](docs/architecture.md) / [中文](docs/架构与接口.md)
+- [Latest upgrade verification](docs/upgrade-20261018.md) / [中文](docs/上游升级验收-20261018.md)
+- [Initial verification record](docs/verification.md) / [中文](docs/验收记录.md)
+- [Maintainer instructions](AGENTS.md) / [中文](AGENTS.zh-CN.md)
 
-## 四个 CMD 是安装和维护入口
-
-| 文件 | 什么时候用 | 实际作用 |
-| --- | --- | --- |
-| `配置本机.cmd` | 首次安装或迁移路径时。 | 选择已有 Harness 和数据目录，生成本机配置；可安装连接程序依赖，不下载 Node.js 或 Harness。 |
-| `检查环境.cmd` | 安装后检查或排查环境问题时。 | 检查路径、文件与配置，不验证 API Key 是否有效或额度是否充足。 |
-| `打开任务面板.cmd` | 想查看进度或手动提交任务时。 | 按需启动连接后台并打开浏览器；面板是可选入口。 |
-| `停止任务服务.cmd` | 要结束全部后台工作、维护或准备关机时。 | 停止活动任务、取消排队任务并关闭本项目后台；不关闭 Codex，也不卸载原 Harness。 |
-
-通过 Codex 可用 `cancel_task` 取消单项任务。目前七个 MCP 工具没有“关闭全部后台”的工具；主 Agent 具有本机命令权限时可执行维护停服，只有 MCP 权限时可逐项取消任务。停止服务后，下次有效任务工具调用仍会自动启动后台；要彻底停用，应在客户端禁用该 MCP，并停止后台。
-
-网页手动提交不经过 Codex 的自动规划与验收，结果需要你自己检查，或另行让 Codex 接手核对。日常通过 Codex/MCP 委派时，无需打开或保持面板运行。
-
-## 文档与发布范围
-
-- [手动安装 SOP](docs/安装SOP.md)：从准备环境到首次成功委派的操作顺序。
-- [交给 Agent 安装](docs/交给Agent安装.md)：可复制的安装任务与人工填写 Key 的环节。
-- [使用说明](docs/使用说明.md)：日常委派、自动启动、长期任务、配置和故障处理。
-- [架构与接口](docs/架构与接口.md)：模块、七个 MCP 工具、监督字段、权限和持久化。
-- [维护约定](AGENTS.md)：开发入口和修改时的验证要求。
-- [验收记录](docs/验收记录.md)：实际执行的验证及未验证范围。
-
-本仓库只包含连接程序、面板、文档和测试；**不打包外部 Harness 的源码、运行环境或凭据**。本机配置、任务记录、复制输入和产物不随源码发布。安装基线为官方 `dsh-v0.2.0-rc.2` 的上游提交 [`639ed015397290b3745d163aafe02ffee4aa3f84`](https://github.com/deepseek-ai/deepseek-harness/tree/639ed015397290b3745d163aafe02ffee4aa3f84)，兼容性以 [验收记录](docs/验收记录.md) 为准；其他版本需重新验证入口和插件兼容性。上游发布新版本不会自动替换本机安装，先查看 [官方发布说明](https://github.com/deepseek-ai/deepseek-harness/releases) 和升级步骤，再在空闲时更新与验收。
+Source distribution includes the bridge, dashboard, docs, examples, and tests. It excludes external Harness source, runtimes, installed dependencies, credentials, local configuration, and task data. New upstream releases require compatibility checks; they do not automatically replace your local Harness installation.

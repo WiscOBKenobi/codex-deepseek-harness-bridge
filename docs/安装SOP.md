@@ -1,5 +1,7 @@
 # 安装 SOP：用户手动操作
 
+[English](installation.md) | **简体中文** · [首页](../README.zh-CN.md)
+
 目标：在自己的电脑安装连接程序与 DeepSeek Harness，在 Harness 中填写自己的 API Key，最后从 Codex 直接委派任务。安装完成后，日常使用不需要手动启动服务或打开网页面板。
 
 本流程以已验证的 Windows 11 + Node.js 24 环境为基准。手动流程包含少量 PowerShell 命令；不想操作终端，请改用 [交给自己的 Agent 安装](交给Agent安装.md)。两条流程安装的是同一套程序。
@@ -30,10 +32,10 @@ git --version
 pnpm.cmd --version
 ```
 
-本项目需要 Node 24+；对接的 Harness 基线在 package.json 中固定 pnpm 11.7.0。如果已有相同版本，无需再次安装。仅当缺少这个版本时，在你允许安装 npm 全局工具的环境执行：
+本项目需要 Node 24+；对接的 Harness 基线在 package.json 中固定 pnpm 11.28.5。如果已有相同版本，无需再次安装。仅当缺少这个版本时，在你允许安装 npm 全局工具的环境执行：
 
 ```powershell
-npm.cmd install --global pnpm@11.7.0
+npm.cmd install --global pnpm@11.28.5
 pnpm.cmd --version
 ```
 
@@ -49,24 +51,26 @@ New-Item -ItemType Directory -Path $installRoot -Force
 $harnessRoot = Join-Path $installRoot 'deepseek-harness'
 git clone https://github.com/deepseek-ai/deepseek-harness.git $harnessRoot
 Set-Location -LiteralPath $harnessRoot
-git checkout --detach 639ed015397290b3745d163aafe02ffee4aa3f84
+git checkout --detach 687f282e8625c6b8d11ff58211a90524be2e4317
 pnpm.cmd install --frozen-lockfile
 pnpm.cmd run build
 ```
 
-最后两步须成功结束。这个固定提交对应官方 `dsh-v0.2.0-rc.2`，是本流程的安装基线；兼容性以 [验收记录](验收记录.md) 为准，不代表任意最新版都兼容。安装完成后按第 6、7 步核验本机接入与任务执行，日后升级也须重新验证。参考 [上游该版本 README](https://github.com/deepseek-ai/deepseek-harness/blob/639ed015397290b3745d163aafe02ffee4aa3f84/README.md)。
+最后两步须成功结束。这个固定提交对应官方 `dsh-v0.2.1-rc.2`，是本流程的安装基线；兼容性以 [验收记录](验收记录.md) 为准，不代表任意最新版都兼容。安装完成后按第 6、7 步核验本机接入与任务执行，日后升级也须重新验证。参考 [上游该版本 README](https://github.com/deepseek-ai/deepseek-harness/blob/687f282e8625c6b8d11ff58211a90524be2e4317/README.md)。
 
 标准 Windows 安装优先使用原生依赖提供的预构建文件；预构建缺失或强制源码编译时，仍可能需要额外工具。遇到错误先查对应上游说明，不通过关闭沙箱跳过，也不预先安装 Docker、WSL 或整套大型编译环境。
 
 ### 更新已有 Harness
 
-已有安装不要重做克隆和初次配置。先查看 [官方发布说明](https://github.com/deepseek-ai/deepseek-harness/releases) 和 [该提交的升级指南目录](https://github.com/deepseek-ai/deepseek-harness/tree/639ed015397290b3745d163aafe02ffee4aa3f84/docs/upgrade-guide)，核对 headless 入口、提供方、插件及数据迁移是否影响本连接程序；确认目标版本已完成兼容验收再升级。
+已有安装不要重做克隆和初次配置。先查看 [官方发布说明](https://github.com/deepseek-ai/deepseek-harness/releases) 和 [该提交的升级指南目录](https://github.com/deepseek-ai/deepseek-harness/tree/687f282e8625c6b8d11ff58211a90524be2e4317/docs/upgrade-guide)，核对 headless 入口、提供方、插件及数据迁移是否影响本连接程序；确认目标版本已完成兼容验收再升级。
 
 1. 记录当前 Harness 提交与工具版本，确认源码修改和分支状态；保留本项目 config.json、项目 MCP 配置、Harness 的实际数据目录及本机 Node、pnpm 和启动器。需要备份时仅留在本机，不打开或输出凭据内容。
 2. 查询本项目任务列表，待活动和排队任务都结束后停止后台；如果官方 Harness 网页服务也在运行，先正常关闭。更新共用安装会影响所有使用它的项目。
 3. 获取官方更新。已有分支只在可以快进且不会覆盖本机修改时快进；存在改动、分叉或独立固定提交时，先处理具体情况，必要时另建安装目录核验。不要执行 git reset 或 git clean，也不要为了升级删除数据目录或重复配置 Key。
 4. 在选定的 Harness 目录使用其声明的 pnpm 版本，重新执行 `pnpm.cmd install --frozen-lockfile` 和 `pnpm.cmd run build`；每一步成功后才继续。目录改变时再更新桥接的 harnessRoot，harnessHome 仍指向原来的实际数据目录。
 5. 重新检查环境与 MCP 连接，按第 6 步查询任务列表。在已获 API 调用授权时，再做第 7 步小文件任务；启用了 agent 时，还要核验原生命令和测试。没有完成这些检查时，标记升级待验收，不宣称可以正常执行任务。
+
+升级到 0.2.1 时也要同步更新本桥接：新版官方 headless 默认不读取 GUI 保存的凭据；本桥接通过官方三行配置恢复读取，不需要用户复制 Key。旧版桥接可能因此认证失败。
 
 ## 3. 打开 Harness，并亲自填写 API Key
 
