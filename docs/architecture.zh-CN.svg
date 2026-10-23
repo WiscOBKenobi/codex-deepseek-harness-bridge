@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1370" viewBox="0 0 1440 1370" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1420" viewBox="0 0 1440 1420" role="img" aria-labelledby="title desc">
   <title id="title">Codex 与 DeepSeek Harness 完整架构</title>
   <desc id="desc">用户通过 Codex 所选模型规划任务，经 MCP 连接本机 daemon。后台服务负责队列、监督和持久化，调用外部 Harness 原生 headless 及 DeepSeek API。files 默认限制文件工具，agent 显式启用原生工具，在独立任务工作目录执行，交付 output 返回 Codex 独立验收。可选网页可以监控或直接提交，直接提交不经过 Codex 自动规划和验收。</desc>
   <defs>
@@ -103,9 +103,10 @@
   <text x="1110" y="1102" class="small">人工权限请求不会自动批准</text>
   <text x="1110" y="1132" class="small">关机或休眠不能继续执行</text>
   <text x="1110" y="1162" class="small">异常恢复后明确续办</text>
-  <text x="1110" y="1192" class="small">不主动唤醒已结束 Codex 回合</text>
+  <text x="1110" y="1192" class="small">事件唤醒需绑定本机 Codex 会话</text>
 
   <rect x="70" y="1250" width="1300" height="76" rx="14" fill="#E9EEF6"/>
   <text x="95" y="1282" class="body">运行完成 ≠ 验收通过；产物不会自动应用到原项目。</text>
   <text x="95" y="1310" class="small muted">不增加额外 Codex / OpenAI API 层。源码分发不含外部 Harness、凭据或本机任务数据。</text>
+<rect x="30" y="1375" width="1380" height="36" rx="8" fill="#eef4ef"/><text x="48" y="1398" font-family="sans-serif" font-size="16" fill="#234936">提问：DeepSeek → awaiting_answer（等待不调用模型）→ codex queue 唤醒决策 → continue_task 继续原会话；默认最多两轮。</text>
 </svg>

@@ -84,7 +84,7 @@ A `get_task` call can wait at most 25 seconds. That is a query timeout, not the 
 
 A long quiet command can be legitimate. Inspect the active tools and last progress before deciding to wait or cancel. Local waiting and heartbeat processing do not generate model tokens. Codex reading and interpreting state consumes its own usage; DeepSeek execution is billed separately. No cutoff is not a promise of free usage or unlimited context.
 
-The bridge cannot wake a finished Codex turn. Automatic follow-up requires scheduling supplied by the client. Sleep prevents continued execution; shutdown or daemon failure interrupts work. Restored incomplete tasks become `interrupted` and require explicit inspection and continuation.
+The bridge queues event-triggered messages to the originating Codex thread through the installed `codex queue` command; no model polling is needed. This requires a compatible local Codex CLI and a bound thread. Sleep prevents continued execution; shutdown or daemon failure interrupts work. Restored incomplete tasks become `interrupted` and require explicit inspection and continuation.
 
 ## Cancel, continue, and stop
 
@@ -129,6 +129,9 @@ As verified on **2026-10-18**, [DeepSeek's API mapping](https://api-docs.deepsee
 | `maxRuntimeSeconds` | `0` | No bridge duration cutoff; nonzero applies per run. |
 | `maxToolCalls` | `0` | No bridge tool-count cutoff. |
 | `maxStreamBytes` | `4194304` | Cumulative JSON stdout cap; 0 removes it. |
+| `maxQuestionRounds` | `2` | Task-wide question budget, 0–10; 0 disables questions. |
+| `enableCodexWake` | `true` | Push question/completion events to a bound Codex thread. |
+| `codexPath` | `codex` | Native CLI executable supporting the queue command. |
 | `stallWarningSeconds` | `300` | No-progress warning threshold. |
 | `maxInputBytes` | `2000000` | Total copied-input limit. |
 | `maxOutputBytes` | `5000000` | Deliverable collection limit; also constrains files-mode writes. |
@@ -159,3 +162,26 @@ This option defaults off. It does not recursively repair existing tasks, change 
 ## Distribution
 
 Share source, docs, examples, and tests. Recipients install their own prerequisites and enter their own Key. Exclude `config.json`, generated `.codex/config.toml`, `.bridge`, dependencies, and local runtimes. Share only explicitly selected deliverables, not complete task folders. See [architecture/API](architecture.md) and [verification](upgrade-20261018.md).
+
+## Bounded questions and decisions
+
+DeepSeek can finish a successful headless turn with a JSON object (no Markdown fences):
+
+```json
+{"type":"bridge_question","question":"Which output format?","evidence":"The requirements specify both JSON and CSV.","options":["JSON","CSV"],"recommendation":"JSON preserves the nested structure."}
+```
+
+Only this explicit final envelope is interpreted. A failed or cancelled process cannot request a decision. Fields are bounded: question 800 characters, evidence 1200, recommendation 800, and 2–4 options of at most 300 characters each. Invalid envelopes fail validation.
+
+The task becomes `awaiting_answer`, retains its workspace/session and releases the serial queue. No model runs while it waits. `get_task`, `list_tasks` and `get_result.task` expose `question` and `questionBudget`. Read the compact question first; fetch supporting files only when necessary. Answer with `continue_task.instruction`, retaining the same requestId when retrying an identical answer. This records the answer and resumes the original session, mode and limits. Questions and answers persist in local task history. Waiting tasks survive restart without replay and can be cancelled. They cannot be accepted as successful deliveries.
+
+Local `maxQuestionRounds` defaults to 2, accepts 0–10, and is captured when the task is created. Zero disables questions. The budget is cumulative across continuations and restarts. An additional question fails with `QUESTION_BUDGET_EXHAUSTED`; nothing retries automatically. Routine implementation and debugging stay with DeepSeek; questions should combine necessary decisions and include evidence plus a recommendation. A question never grants additional authority.
+
+The bridge queues event-triggered messages to the originating Codex thread through the installed `codex queue` command; no model polling is needed. This requires a compatible local Codex CLI and a bound thread. It adds no direct Codex/OpenAI API layer, but event-triggered Codex decisions consume the existing account allowance. Run the explicitly opt-in paid verification with `node scripts/question-smoke.mjs`, setting `BRIDGE_HARNESS_ROOT`, `BRIDGE_HARNESS_HOME` and optionally `BRIDGE_HARNESS_ENTRY` to the existing local installation. Keys remain managed by Harness.
+
+
+### Event wake configuration
+
+`enableCodexWake` defaults to true; `codexPath` defaults to `codex` (set the actual executable path if the daemon PATH lacks it; on Windows use the native `codex.exe`, since shell wrappers such as `.cmd` are not executed). `submit_task.codexThreadId` binds the originating session UUID; the MCP entry also falls back to its inherited `CODEX_THREAD_ID`. Pass the current thread explicitly when the MCP process is shared. Never infer a target from DeepSeek output. Dashboard tasks without a bound thread have `wake.status: unbound` and do not wake Codex.
+
+Only `awaiting_answer`, `succeeded`, `failed`, and `timed_out` produce events. Codex answers once and ends its turn; a later event resumes attention. Do not poll between events. A queued message preserves the thread's selected model; no API key or model override is added. Delivery is claimed on disk before dispatch, at most once per run. `wake.status` reports pending/attempted/queued/failed/unbound/disabled. Queued means the CLI accepted the message, not that GPT has processed it. Failed or uncertain delivery is never automatically retried; inspect manually. A crash after claiming but before dispatch may lose a notification, prioritizing avoidance of duplicate GPT turns. On startup only unclaimed terminal events are sent. Sleep/shutdown and incompatible clients still prevent timely processing.

@@ -28,6 +28,10 @@ async function fixtureRunner({ workspace, prompt, sessionId, onEvent }) {
   const finish = outcome => { if (settled) return; settled = true; clearTimeout(timer); resolveDone(outcome); };
   timer = setTimeout(async () => {
     try {
+      if (revision === 1 && prompt.includes('协议问题测试')) {
+        finish({status:'succeeded',sessionId:session,finalText:JSON.stringify({type:'bridge_question',question:'选择 JSON 还是 CSV？<b>仅文本</b>',evidence:'交付格式尚未确定。',options:['JSON','CSV'],recommendation:'推荐 JSON。'}),toolCalls:0,exitCode:0});
+        return;
+      }
       onEvent({ type: 'tool_call', name: 'write' });
       const content = `中文任务面板验收\n修订版本：${revision}\n结果：输入已整理\n<img src="invalid" onerror="window.__unsafeMarkup=1">\n`;
       await writeFile(join(workspace, 'output', 'report.txt'), content);
@@ -65,7 +69,7 @@ try {
   manager = await new TaskManager(fixtureConfig, { runner: fixtureRunner }).init();
   api = await createApiServer({ config: fixtureConfig, manager });
   const base = `http://127.0.0.1:${api.port}`;
-  browser = await chromium.launch({ channel: 'msedge', headless: true });
+  browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || 'msedge', headless: true });
   authContext = await browser.newContext({ viewport: { width: 1440, height: 1000 }, locale: 'zh-CN' });
   page = await authContext.newPage();
   page.on('pageerror', error => errors.push(error.message));
@@ -156,6 +160,29 @@ try {
   assert.equal((await manager.list()).tasks[0].status, 'cancelled');
   assert.equal(await page.locator('#accept-button').isDisabled(), true);
   ok('running task cancelled; unsuccessful task cannot be accepted');
+
+  await page.locator('#new-task-button').click();
+  await page.locator('#instruction').fill('协议问题测试：请先确认格式。');
+  await page.locator('#submit-button').click();
+  await waitText(page, 'task-status', '等待决策');
+  await waitText(page, 'question-content', '选择 JSON 还是 CSV？');
+  await waitText(page, 'task-wake', '未绑定 Codex 会话');
+  assert.equal(await page.locator('#question-content b').count(), 0);
+  assert.equal(await page.locator('#accept-button').isDisabled(), true);
+  assert.equal(await page.locator('#cancel-button').isVisible(), true);
+  const questioning = (await manager.list()).tasks[0];
+  const pausedRecord = manager.getTask(questioning.id);
+  pausedRecord.wakes = [{run:1,status:'failed'}];
+  await page.locator('#refresh-button').click();
+  await waitText(page, 'task-wake', '推送失败');
+  await page.locator('#continue-button').click();
+  await page.locator('#continue-instruction').fill('选择 JSON，请继续。');
+  await page.locator('#continue-submit').click();
+  await waitText(page, 'task-status', '执行完成');
+  assert.equal(await page.locator('#question-panel').isVisible(), false);
+  assert.equal((await manager.get(questioning.id)).task.sessionId, questioning.sessionId);
+  assert.equal((await manager.get(questioning.id)).task.questionBudget.used, 1);
+  ok('question, plain-text evidence, failed wake status and answer continuation');
 
   await page.locator('.task-item').filter({ hasText: '整理输入并输出验收说明' }).click();
   await waitText(page, 'task-status', '执行完成');

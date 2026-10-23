@@ -2,6 +2,8 @@
 
 **English** | [简体中文](验收记录.md) · [Home](../README.md)
 
+For the new question and event-wake feature, see [October 23 verification](question-verification.md). Historical limitations below describe the initial release.
+
 For current compatibility, see the [October 18 upgrade](upgrade-20261018.md). The [September 30 report](upgrade-20260930.md) records the intervening upgrade. This page preserves the **September 27, 2026** initial verification; its versions and counts are historical.
 
 Environment: Windows 11, Node 24.19.0, MCP SDK 1.30.1, zod 4.3.6; upstream Harness commit `477b4f420553e8a52c2fbccc464d7561b239c443`. No upstream source, global Codex config, or copied API Key was required.

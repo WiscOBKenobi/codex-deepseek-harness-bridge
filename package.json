@@ -16,6 +16,8 @@
     "test:live": "node scripts/live-smoke.mjs",
     "check:syntax": "node scripts/check.mjs --syntax-only",
     "test:ui": "node scripts/ui-smoke.mjs",
+    "test:question": "node scripts/question-smoke.mjs",
+    "test:wake": "node scripts/wake-smoke.mjs",
     "test:agent": "node scripts/live-agent-smoke.mjs",
     "setup": "node scripts/setup.mjs"
   },

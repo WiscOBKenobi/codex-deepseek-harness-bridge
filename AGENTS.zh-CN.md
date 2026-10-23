@@ -26,6 +26,7 @@
 - `maxStreamBytes` 发布默认 4 MiB，0 表示没有累计 stdout JSON 流截止；单条消息和交付收集限制仍生效。不要把协议流量、output 大小与 agent 工程磁盘占用混为一谈。
 - 监督心跳默认每 15 秒，仅说明监督仍运行；可识别进展独立记录。默认 300 秒无进展仅提示疑似停滞，不自动杀进程。
 - 客户端断开不停止 daemon 活动任务；停止服务要结束活动任务。电脑关机或休眠不能继续执行；异常恢复标 interrupted，不自动重放，明确继续后才产生新请求。
+- 提问使用 awaiting_answer 状态及每任务预算（默认两轮），通过 continue_task 答复。事件只推送至原 Codex 会话，保留主模型，经本机 Codex queue CLI 执行；每轮先持久记录再发送，结果不明不自动重试，不用模型反复轮询，忽略过期事件。不传递原始思维链。
 - `succeeded` 与 `accepted` 分开。产物以实际文件及独立检查为准，不自动写回原项目。
 
 ## 开发入口
@@ -38,6 +39,7 @@
 - `npm run mcp`：MCP stdio，stdout 只写协议。
 - `npm start`：打开可选面板，按需启动后台服务。
 - `npm run stop`：停止服务及其活动任务。
+- `npm run test:question` / `npm run test:wake`：真实提问/答复与原会话唤醒验证，会消耗模型额度，须获授权。
 - `npm run test:live`：调用真实 DeepSeek，会消耗 API 额度，仅在相应授权下运行。
 
 ## 修改与交付

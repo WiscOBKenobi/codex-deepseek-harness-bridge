@@ -34,6 +34,7 @@
       </div>
       <article id="task-detail" hidden>
         <header class="detail-header"><div class="detail-title-wrap"><div class="eyebrow" id="task-reference"></div><h2 id="task-title"></h2><div class="status-row"><span class="badge" id="task-status"></span><span class="badge review-badge" id="task-review"></span><span class="muted" id="task-updated"></span></div></div><button class="danger-outline" type="button" id="cancel-button" hidden>停止任务</button></header>
+        <p id="task-wake" class="field-help" role="status"></p>
         <div id="task-error" class="inline-notice danger" role="alert" hidden></div>
         <div class="task-stats"><div><span>执行模型</span><strong id="task-model">—</strong></div><div><span>执行模式</span><strong id="task-mode">—</strong></div><div><span>工具调用</span><strong id="task-tools">—</strong></div><div><span>单次运行上限</span><strong id="task-limits">—</strong></div></div><section class="task-health" aria-label="任务活动状态"><div class="health-heading"><h3>活动状态</h3><span class="badge" id="task-health-state">—</span></div><p id="task-health-note" class="field-help"></p><div class="activity-times"><span>最近心跳：<time id="task-heartbeat">—</time></span><span>最近进展：<time id="task-progress">—</time></span></div></section>
         <details class="instruction-panel"><summary>任务要求与工作目录</summary><pre id="task-instruction" class="plain-text"></pre><div class="path-row"><code id="task-workspace"></code><button id="copy-workspace" type="button" class="secondary small">复制路径</button></div></details>
@@ -44,6 +45,7 @@
           <div class="section-heading"><h3>生成文件</h3><span class="muted">保存在本地 output 目录</span></div>
           <div id="artifact-list" class="artifact-list"><p class="panel-empty">任务完成后，生成的文件会显示在这里。</p></div>
           <section id="file-preview" class="file-preview" hidden><div class="preview-heading"><h3 id="preview-title"></h3><button type="button" id="close-preview" class="icon-button" aria-label="关闭文件预览">×</button></div><pre id="preview-content" tabindex="0"></pre><p id="preview-note" class="muted"></p></section>
+          <section id="question-panel" class="review-panel" hidden><h3>DeepSeek 需要决策</h3><pre id="question-content"></pre><p>在下方点击“回答并继续”，答复不会扩大原任务权限。</p></section>
           <section class="review-panel" id="review-panel" hidden><div><div class="eyebrow">最后一步 · 人工验收</div><h3 id="review-heading">执行完成，还需要检查结果</h3><p id="review-description">先打开文件核对内容，再记录验收结论。模型完成不等于结果已验收。</p></div><label for="review-note">验收说明 <span class="muted">（必填）</span></label><textarea id="review-note" rows="2" maxlength="4000" placeholder="例如：已核对计算和文件内容，结果符合要求。"></textarea><div class="review-actions"><button type="button" class="primary" id="accept-button">标记为验收通过</button><button type="button" class="secondary" id="changes-button">标记需修改</button><button type="button" class="text-button" id="continue-button">让 DeepSeek 继续修改 →</button></div></section>
         </section>
         <section id="events-panel" role="tabpanel" aria-labelledby="events-tab" hidden><p class="panel-description">展示执行事件与工具结果，不展示模型思考过程。</p><ol id="event-list" class="event-list"></ol></section>

@@ -7,6 +7,9 @@
   "readRoots": [
     "."
   ],
+  "enableCodexWake": true,
+  "codexPath": "codex",
+  "maxQuestionRounds": 2,
   "maxRuntimeSeconds": 0,
   "maxToolCalls": 0,
   "stallWarningSeconds": 300,

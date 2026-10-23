@@ -150,3 +150,7 @@ After setup, delegate and cancel in Codex. The dashboard is optional, and an idl
 | Scope | Native mode and optional Windows initialization reflect explicit authorization. |
 
 The SOP is checked against the pinned source and [reported integration tests](upgrade-20261018.md). It is not a claim that every step was rerun on a blank machine. Other systems and missing components require their own verification.
+
+## Optional event wake verification
+
+Question/answer support needs no extra service. Automatic follow-up requires a local Codex CLI whose `codex queue --help` succeeds, an executable reachable by the daemon (`codexPath`), and the originating thread UUID (`submit_task.codexThreadId`). Do not run a paid verification until authorized. On Windows use the native Codex executable rather than a shell wrapper. See [event configuration](usage.md#event-wake-configuration) and [verification](question-verification.md). Binding must be explicit when an MCP process is shared; do not change global client configuration.
