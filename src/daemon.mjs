@@ -93,6 +93,8 @@ export async function startDaemon(config) {
     api = await createApiServer({config,manager,onShutdown:shutdown});
     await atomicJson(join(config.dataDir,'server.json'),{instanceId,port:api.port,token:api.token,startedAt:new Date().toISOString()});
   } catch(error) { await shutdown(); throw error; }
+  // Recover only events never claimed for delivery; attempted/failed deliveries are not replayed.
+  for (const task of manager.tasks.values()) void manager.notify(task.id).catch(() => {});
   for(const signal of ['SIGINT','SIGTERM']) process.once(signal,()=>{void shutdown();});
   return {manager,api,shutdown};
 }

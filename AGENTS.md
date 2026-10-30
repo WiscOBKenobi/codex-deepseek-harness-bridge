@@ -26,6 +26,7 @@ For installation, migration, or client setup, read [installation](docs/installat
 - Cumulative stream limit defaults to 4 MiB; 0 removes that cutoff, not per-message or deliverable limits. Distinguish protocol traffic, delivered output, and agent project disk usage.
 - Heartbeat defaults to 15 seconds. Recognized progress is separate; 300 seconds without progress warns but does not kill. Heartbeat is not success evidence.
 - Client disconnect does not stop daemon work; service shutdown must end active tasks. Sleep/shutdown prevents execution. Recovery marks unfinished tasks interrupted without replay; explicit continuation starts another request.
+- Questions use awaiting_answer, a task-wide budget (default 2), and continue_task answers. Event wakes bind to the originating Codex thread, keep its model, and use the local Codex queue CLI. Persist one delivery claim per run; do not auto-retry uncertain delivery or poll with a model. Ignore stale events. No raw thinking is passed to Codex.
 - Separate succeeded from accepted. Verify actual files and necessary tests; do not automatically apply outputs to the source project.
 
 ## Commands
@@ -40,6 +41,7 @@ Use [package.json](package.json) and the configured Node 24+:
 | `npm run mcp` | MCP stdio; stdout is protocol only. |
 | `npm start` | Open optional dashboard, start daemon on demand. |
 | `npm run stop` | Stop daemon and its active tasks. |
+| `npm run test:question` / `npm run test:wake` | Paid question/answer and originating-thread wake verification; requires authorization. |
 | `npm run test:live` | Paid real DeepSeek verification; requires corresponding authorization. |
 
 ## Changes and delivery

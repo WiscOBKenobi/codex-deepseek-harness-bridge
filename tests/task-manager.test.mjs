@@ -171,3 +171,92 @@ test('review snapshot becomes stale when an output changes after acceptance',asy
  await writeFile(join(task.workspace,'output','report.txt'),'changed');
  assert.equal((await manager.result(task.id)).reviewStale,true);
 });
+
+test('questions pause, persist, resume idempotently and exhaust a task-wide budget', async t => {
+ const fake=controlledRunner(); const {manager,config,managers}=await fixture(t,fake.runner);
+ const task=await manager.submit({instruction:'Resolve an ambiguous requirement'});
+ const question=JSON.stringify({type:'bridge_question',question:'Which format?',evidence:'Two conflicting requirements.',options:['JSON','CSV'],recommendation:'JSON'});
+ for(let round=0;round<2;round++) {
+  await started(fake.calls,round+1); fake.calls[round].finish({finalText:question});
+  const paused=await terminal(manager,task.id);
+  assert.equal(paused.status,'awaiting_answer'); assert.equal(paused.question.question,'Which format?');
+  assert.equal(paused.questionBudget.used,round+1);
+  await assert.rejects(manager.review(task.id,{status:'accepted',note:'premature'}),{code:'TASK_NOT_SUCCEEDED'});
+  const answer={instruction:'Use JSON.',requestId:'answer-round-'+round};
+  await manager.continue(task.id,answer); await manager.continue(task.id,answer);
+ }
+ await started(fake.calls,3); fake.calls[2].finish({finalText:question});
+ assert.equal((await terminal(manager,task.id)).error.code,'QUESTION_BUDGET_EXHAUSTED');
+ assert.equal(fake.calls.length,3);
+ const restarted=new TaskManager(config,{runner:fake.runner});managers.push(restarted);await restarted.init();
+ assert.equal((await restarted.get(task.id)).task.questionBudget.used,2);
+});
+
+test('failed runs cannot ask questions; invalid question envelopes fail closed', async t => {
+ const fake=controlledRunner();const {manager}=await fixture(t,fake.runner);
+ for(const outcome of [
+  {status:'failed',finalText:JSON.stringify({type:'bridge_question',question:'why?'})},
+  {finalText:JSON.stringify({type:'bridge_question',question:'',evidence:'x',options:[],recommendation:'x'})},
+ ]) {
+  const nextCall = fake.calls.length + 1;
+  const task=await manager.submit({instruction:'test'});await started(fake.calls,nextCall);
+  fake.calls.at(-1).finish(outcome);
+  assert.equal((await terminal(manager,task.id)).status,'failed');
+ }
+});
+
+test('waiting questions survive restart, release the queue, and can be cancelled', async t => {
+ const fake=controlledRunner(); const {manager,config,managers}=await fixture(t,fake.runner);
+ const a=await manager.submit({instruction:'first'});await started(fake.calls);
+ const b=await manager.submit({instruction:'second'});
+ fake.calls[0].finish({finalText:JSON.stringify({type:'bridge_question',question:'Choose?',evidence:'Conflicting formats',options:['A','B'],recommendation:'A is simpler'})});
+ await terminal(manager,a.id);await started(fake.calls,2);fake.calls[1].finish();await terminal(manager,b.id);
+ const restarted=new TaskManager(config,{runner:fake.runner});managers.push(restarted);await restarted.init();
+ assert.equal((await restarted.get(a.id)).task.status,'awaiting_answer');
+ assert.equal((await restarted.get(a.id)).task.question.options[0],'A');
+ assert.equal(fake.calls.length,2);
+ assert.equal((await restarted.cancel(a.id)).status,'cancelled');
+});
+
+test('zero question budget fails without automatic retries or success acceptance', async t => {
+ const fake=controlledRunner(); const {manager,config}=await fixture(t,fake.runner);config.maxQuestionRounds=0;
+ const task=await manager.submit({instruction:'blocked'});await started(fake.calls);
+ fake.calls[0].finish({finalText:JSON.stringify({type:'bridge_question',question:'Choose?',evidence:'conflict',options:['A','B'],recommendation:'A'})});
+ assert.equal((await terminal(manager,task.id)).error.code,'QUESTION_BUDGET_EXHAUSTED');
+ assert.equal(fake.calls.length,1);
+});
+
+test('events wake only the bound Codex thread once per run, including completion', async t => {
+ const fake=controlledRunner();const {manager,config,managers}=await fixture(t,fake.runner);
+ const wakes=[];manager.waker=async message=>{wakes.push(message);};
+ const threadId=randomUUID();
+ const task=await manager.submit({instruction:'decide',codexThreadId:threadId});await started(fake.calls);
+ fake.calls[0].finish({finalText:JSON.stringify({type:'bridge_question',question:'Choose?',evidence:'conflict',options:['A','B'],recommendation:'A'})});
+ await terminal(manager,task.id);await manager.notify(task.id);await manager.notify(task.id);
+ assert.equal(wakes.length,1);assert.equal(wakes[0].threadId,threadId);assert.match(wakes[0].message,/Choose/);
+ await manager.continue(task.id,{instruction:'A',requestId:'wake-answer-001'});await started(fake.calls,2);fake.calls[1].finish();
+ await terminal(manager,task.id);await manager.notify(task.id);assert.equal(wakes.length,2);
+ const restarted=new TaskManager(config,{runner:fake.runner,waker:async()=>{throw Error('must not replay');}});managers.push(restarted);await restarted.init();
+ await restarted.notify(task.id);assert.equal((await restarted.get(task.id)).task.wake.status,'queued');
+ await assert.rejects(manager.submit({instruction:'x',codexThreadId:'not-a-thread'}),{code:'INVALID_ARGUMENT'});
+});
+
+test('failed wake delivery is visible and never automatically retried', async t => {
+ const fake=controlledRunner();const {manager}=await fixture(t,fake.runner);let calls=0;
+ manager.waker=async()=>{calls++;throw Error('private error');};
+ const task=await manager.submit({instruction:'finish',codexThreadId:randomUUID()});await started(fake.calls);fake.calls[0].finish();await terminal(manager,task.id);
+ await manager.notify(task.id);await manager.notify(task.id);
+ assert.equal(calls,1);assert.equal((await manager.get(task.id)).task.wake.status,'failed');
+ assert(!JSON.stringify((await manager.get(task.id)).task).includes('private error'));
+});
+
+test('unbound or disabled tasks never wake and a request cannot retarget another thread', async t => {
+ const fake=controlledRunner();const {manager,config}=await fixture(t,fake.runner);let count=0;manager.waker=async()=>{count++;};
+ const first=await manager.submit({instruction:'unbound'});await started(fake.calls);fake.calls[0].finish();await terminal(manager,first.id);await manager.notify(first.id);
+ assert.equal((await manager.get(first.id)).task.wake.status,'unbound');
+ config.enableCodexWake=false;
+ const args={instruction:'bound',codexThreadId:randomUUID(),requestId:'same-wake-request'};
+ const second=await manager.submit(args);await started(fake.calls,2);
+ await assert.rejects(manager.submit({...args,codexThreadId:randomUUID()}),{code:'IDEMPOTENCY_CONFLICT'});
+ fake.calls[1].finish();await terminal(manager,second.id);await manager.notify(second.id);assert.equal(count,0);
+});

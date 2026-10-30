@@ -3,10 +3,10 @@
 /** Browser client for the authenticated local task service. */
 const $ = (id) => document.getElementById(id);
 const ACTIVE = new Set(['queued', 'running', 'cancelling']);
-const CONTINUABLE = new Set(['succeeded', 'failed', 'cancelled', 'timed_out']);
-const STATUS = {queued:'排队中',running:'正在执行',cancelling:'正在停止',succeeded:'执行完成',failed:'执行失败',cancelled:'已停止',timed_out:'达到时间上限',interrupted:'运行已中断'};
+const CONTINUABLE = new Set(['awaiting_answer', 'succeeded', 'failed', 'cancelled', 'timed_out']);
+const STATUS = {awaiting_answer:'等待决策',queued:'排队中',running:'正在执行',cancelling:'正在停止',succeeded:'执行完成',failed:'执行失败',cancelled:'已停止',timed_out:'达到时间上限',interrupted:'运行已中断'};
 const REVIEW = {accepted:'验收通过',needs_changes:'需要修改',pending:'待验收'};
-const EVENT_LABELS = {queued:'任务进入队列',running:'开始执行',session:'会话已建立',tool_call:'调用工具',tool_result:'工具返回结果',final:'模型提交结果',error:'执行错误',cancelled:'任务已停止',timed_out:'达到时间上限',succeeded:'执行完成',failed:'执行失败',review:'更新验收记录',continued:'收到补充要求',interrupted:'运行中断'};
+const EVENT_LABELS = {awaiting_answer:'DeepSeek 提出问题',queued:'任务进入队列',running:'开始执行',session:'会话已建立',tool_call:'调用工具',tool_result:'工具返回结果',final:'模型提交结果',error:'执行错误',cancelled:'任务已停止',timed_out:'达到时间上限',succeeded:'执行完成',failed:'执行失败',review:'更新验收记录',continued:'收到补充要求',interrupted:'运行中断'};
 const state = {token:'',tasks:[],selected:null,task:null,events:[],cursor:0,filter:'all',health:null,refreshing:false,needsRefresh:false,creating:false,continuing:false,actionBusy:false,listSignature:'',previewPath:null,reviewStale:false,reviewSignature:'',timer:null};
 let toastTimer;
 let pendingCreate;
@@ -110,9 +110,15 @@ function renderTask(task) {
   $('task-workspace').textContent = task.workspace || '—';
   const error = typeof task.error === 'string' ? task.error : task.error?.message;
   formError('task-error',error || (task.status === 'interrupted' ? '服务重启前的任务未完成，系统不会自动重复运行。可以新建任务重新提交。' : ''));
-  $('cancel-button').hidden = !isActive(task);
+  $('cancel-button').hidden = !isActive(task) && task.status !== 'awaiting_answer';
   $('cancel-button').disabled = state.actionBusy || task.status === 'cancelling';
   $('cancel-button').textContent = task.status === 'cancelling' ? '正在停止…' : '停止任务';
+  const wakeLabels = {pending:'等待任务事件',attempted:'推送已发起，结果待确认；不会自动重发',queued:'已加入 Codex 消息队列，等待会话处理',failed:'推送失败，请检查本机 Codex CLI 并手动处理任务；不会自动重发',unbound:'未绑定 Codex 会话，可在本面板处理',disabled:'主动推送已关闭'};
+  $('task-wake').textContent = 'Codex 通知：' + (wakeLabels[task.wake?.status] || '暂无推送状态');
+  const question = task.question;
+  $('question-panel').hidden = !question;
+  $('question-content').textContent = question ? [question.question, '依据：' + question.evidence, ...question.options.map((option, i) => `${i + 1}. ${option}`), '建议：' + question.recommendation, `已用提问轮数：${task.questionBudget.used}/${task.questionBudget.maximum}`].join('\n') : '';
+  $('continue-button').textContent = question ? '回答并继续 →' : '让 DeepSeek 继续修改 →';
   const terminal = !isActive(task);
   $('review-panel').hidden = !terminal;
   $('accept-button').disabled = state.actionBusy || task.status !== 'succeeded' || (review === 'accepted' && !state.reviewStale);

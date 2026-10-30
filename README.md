@@ -88,7 +88,15 @@ The client starts MCP; the first valid task operation starts or connects to the 
 
 By default, `maxRuntimeSeconds=0` and `maxToolCalls=0` impose no bridge duration or tool-count cutoff. Completion still ends the task. The template separately caps cumulative protocol output at 4 MiB; `maxStreamBytes: 0` removes that cumulative cap while keeping per-message and deliverable checks. A 15-second heartbeat is separate from progress; 300 seconds without recognized progress produces a warning, not an automatic kill.
 
-Local waiting does not itself generate model tokens. Codex's interpretation and decisions consume its usage; DeepSeek execution is billed separately. This bridge cannot wake an ended Codex turn. Client scheduling is needed for automatic follow-up. Shutdown and sleep prevent continued execution; interrupted tasks require explicit review and continuation.
+Local waiting does not itself generate model tokens. Codex's interpretation and decisions consume its usage; DeepSeek execution is billed separately. The bridge queues event-triggered messages to the originating Codex thread through the installed `codex queue` command; no model polling is needed. This requires a compatible local Codex CLI and a bound thread. Shutdown and sleep prevent continued execution; interrupted tasks require explicit review and continuation.
+
+## Questions and automatic follow-up
+
+DeepSeek can ask a bounded question with evidence, options, and a recommendation. Codex answers through `continue_task`, preserving the original session and permissions. The default task-wide budget is two question rounds.
+
+Bind `submit_task.codexThreadId` to the originating Codex session. With a compatible local `codex queue` command, the daemon pushes questions and completion events to that session; Codex can end its turn while DeepSeek works. Waiting requires no model polling. Each event is attempted once; failed delivery remains visible for manual handling. The resulting Codex decisions still consume the existing account allowance.
+
+See [question and event configuration](docs/usage.md#event-wake-configuration) and [verification](docs/question-verification.md). Unbound dashboard tasks can be answered manually.
 
 ## Windows shortcuts
 

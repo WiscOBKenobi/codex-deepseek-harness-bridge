@@ -43,5 +43,10 @@ flowchart TB
     output --> result
     monitor --> state
     result -- Returned through RPC / MCP --> codex
-    limitation[No execution during host sleep or shutdown<br/>Recovery marks interrupted; explicit continuation<br/>Bridge cannot wake an ended Codex turn]
+    limitation[No execution during host sleep or shutdown<br/>Recovery marks interrupted; explicit continuation<br/>Event wake requires bound Codex CLI session]
     state -.-> limitation
+    loop -- "Bounded final question" --> decision[awaiting_answer · No model running]
+    decision -- "MCP query" --> codex
+    codex -- "continue_task · Answer, same session" --> queue
+    decision -- "codex queue · Event wake" --> codex
+    result -- "Completion event wake" --> codex

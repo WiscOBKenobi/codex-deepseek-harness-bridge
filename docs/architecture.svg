@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1370" viewBox="0 0 1440 1370" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1420" viewBox="0 0 1440 1420" role="img" aria-labelledby="title desc">
   <title id="title">Codex and DeepSeek Harness architecture</title>
   <desc id="desc">Codex plans and reviews through MCP. A local daemon owns the queue, supervision, and persistence. Official Harness headless runs DeepSeek tasks. Files mode restricts tools; native agent is opt-in. Output returns for independent review. The optional dashboard can submit directly without Codex planning.</desc>
   <defs>
@@ -103,9 +103,10 @@
   <text x="1110" y="1102" class="small">No automatic human approvals</text>
   <text x="1110" y="1132" class="small">No execution during sleep/off</text>
   <text x="1110" y="1162" class="small">Explicit resume after interruption</text>
-  <text x="1110" y="1192" class="small">No wakeup of ended Codex turns</text>
+  <text x="1110" y="1192" class="small">Bound thread + Codex CLI required</text>
 
   <rect x="70" y="1250" width="1300" height="76" rx="14" fill="#E9EEF6"/>
   <text x="95" y="1282" class="body">Execution complete ≠ Review accepted. Outputs are not automatically applied to the source project.</text>
   <text x="95" y="1310" class="small muted">No extra Codex / OpenAI API layer. Distribution excludes external Harness, credentials, and local task data.</text>
+<rect x="30" y="1375" width="1380" height="36" rx="8" fill="#eef4ef"/><text x="48" y="1398" font-family="sans-serif" font-size="16" fill="#234936">Questions: DeepSeek → awaiting_answer (no model running) → codex queue → Codex → continue_task (same session). Default: 2 rounds.</text>
 </svg>

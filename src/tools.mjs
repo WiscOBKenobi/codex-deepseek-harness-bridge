@@ -26,6 +26,7 @@ export const TOOL_DEFINITIONS = [
       instruction: instruction.describe('Goal, expected deliverables, and acceptance criteria. Do not include API keys or credentials.'),
       inputs: z.array(z.string().min(1).max(4096)).max(30).optional().describe('Absolute paths of up to 30 explicitly selected input files within configured read roots; directories and secrets are rejected.'),
       requestId,
+      codexThreadId: z.string().uuid().optional().describe('Existing originating Codex thread UUID. Binds event-triggered wakeups to that session; never use an unrelated thread.'),
       mode: z.enum(['files', 'agent']).optional().describe('Defaults to local defaultMode. agent uses native Harness tools and requires enableNativeAgent; files permits only read/write/edit of copied inputs and output files.'),
       maxRuntimeSeconds: nonnegativeInteger.optional().describe('Wall-clock limit in seconds; 0 means no bridge deadline. Defaults to local configuration; a positive configured ceiling cannot be bypassed.'),
       maxToolCalls: nonnegativeInteger.optional().describe('Tool-call limit; 0 means no bridge call cutoff. Defaults to local configuration; a positive configured ceiling cannot be bypassed.'),
@@ -55,7 +56,7 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: 'continue_task', method: 'continue', title: 'Request a task revision',
-    description: 'Continue a finished task with its original mode, limits, Harness session and existing files. Resets review to pending and returns immediately. Agent mode still requires local enablement.',
+    description: 'Answer an awaiting_answer question or continue a finished task with its original mode, limits, Harness session and existing files. Resets review to pending and returns immediately. Agent mode still requires local enablement.',
     inputSchema: z.strictObject({
       taskId,
       instruction: instruction.describe('Specific revision request and acceptance criteria; do not include credentials.'),
@@ -120,6 +121,7 @@ function summarize(method, data) {
   if (method === 'list') return `${data.tasks?.length ?? 0} task summaries returned.`;
   const task = data.task ?? data;
   const parts = [task.id ? `Task ${task.id}` : 'Bridge request completed'];
+  if (task.question) parts.push(`decision required: ${task.question.question}`);
   if (typeof task.status === 'string') parts.push(`status: ${task.status}`);
   if (typeof task.actualMode === 'string') parts.push(`mode: ${task.actualMode}`);
   if (task.health?.state === 'suspected_stall') parts.push('health: suspected stall; inspect recent progress before deciding');

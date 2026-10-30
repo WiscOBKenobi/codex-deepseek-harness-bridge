@@ -10,7 +10,7 @@ Codex plans and delegates, DeepSeek executes through the official Harness, and C
 
 [Editable Mermaid source](architecture.mmd) · [Chinese diagram](architecture.zh-CN.svg)
 
-Solid arrows show the normal task flow; dashed arrows show optional paths. Results return when queried. They do not wake an ended Codex turn.
+Solid arrows show the normal task flow; dashed arrows show optional paths. Artifacts return when queried; question and completion events queue a message to the originating Codex session.
 
 **Codex/MCP is the primary entry point.** The selected Codex model plans and checks work; the bridge does not add a Codex/OpenAI API layer. DeepSeek requests use a separate account and billing path. **The dashboard is optional**, for monitoring or direct submissions; direct tasks require independent user or later Codex review.
 
@@ -96,7 +96,7 @@ Failures include `NONEMPTY_WORKSPACE`, `WORKSPACE_OWNER_MISMATCH`, `WORKSPACE_AC
 | `health.activeToolCount` | Observed active tools, possibly including native concurrent work. |
 | `health.stallWarningSeconds` | Default 300-second no-progress threshold. |
 
-A suspected stall is a warning, not an automatic kill or retry. Process health, successful execution, and accepted artifacts are separate facts. Local waiting uses no model tokens; Codex interpretation and DeepSeek execution have their own usage. The bridge cannot wake an ended Codex turn. Sleep/shutdown prevent continued work; recovery marks unfinished tasks interrupted and requires explicit continuation.
+A suspected stall is a warning, not an automatic kill or retry. Process health, successful execution, and accepted artifacts are separate facts. Local waiting uses no model tokens; Codex interpretation and DeepSeek execution have their own usage. The bridge queues event-triggered messages to the originating Codex thread through the installed `codex queue` command; no model polling is needed. This requires a compatible local Codex CLI and a bound thread. Sleep/shutdown prevent continued work; recovery marks unfinished tasks interrupted and requires explicit continuation.
 
 ## 5. Seven MCP tools
 
@@ -111,6 +111,7 @@ Immediately returns an accepted task summary, not completed execution.
 | `instruction` | Required, 1–32000 characters, not whitespace-only. Include goal, deliverables, checks. |
 | `inputs` | Optional, up to 30 explicit absolute regular-file paths; no directories. |
 | `mode` | Optional `files` or `agent`; defaults to local config, with agent enablement enforced. |
+| `codexThreadId` | Optional originating Codex thread UUID; binds question/completion wakes. Cannot be changed by continuation. |
 | `requestId` | Recommended, 8–128 letters/digits/dots/hyphens/underscores. Retain for one logical request. |
 | `maxRuntimeSeconds` | Optional nonnegative integer; 0 cannot bypass a nonzero project cap. |
 | `maxToolCalls` | Same semantics for tool count. |
@@ -169,6 +170,7 @@ Tools return structured data and concise text; failures are explicit, not disgui
 | --- | --- |
 | `queued` | Accepted and waiting. |
 | `running` | Harness executing; see health for progress. |
+| `awaiting_answer` | Successful turn paused for a decision; no model process runs. |
 | `cancelling` | Waiting for exit and cleanup. |
 | `succeeded` | Execution succeeded; review still required. |
 | `failed` | Startup, execution, exit, or artifact validation failed. |
@@ -206,4 +208,27 @@ The repository excludes external Harness, Node, installed dependencies, credenti
 
 Use [package.json](../package.json) for actual commands: `npm ci`, `npm run check`, `npm test`. Live scripts consume API credit. `npm run test:ui` requires separately available Playwright and Edge (`msedge`), with optional `PLAYWRIGHT_MODULE`; normal dependencies do not install Playwright. See [verification](upgrade-20261018.md).
 
-Implemented: MCP delegation, persistent tasks, two modes, supervision, continuation/cancellation, artifact review, optional dashboard. Not implemented: waking finished Codex turns, execution across powered-off machines, public hosting, unbounded automatic rework, or automatic setup of every plugin.
+Implemented: MCP delegation, persistent tasks, two modes, supervision, continuation/cancellation, artifact review, optional dashboard. Not implemented: execution across powered-off machines, public hosting, unbounded automatic rework, or automatic setup of every plugin.
+
+## 9. Bounded questions and decisions
+
+DeepSeek can finish a successful headless turn with a JSON object (no Markdown fences):
+
+```json
+{"type":"bridge_question","question":"Which output format?","evidence":"The requirements specify both JSON and CSV.","options":["JSON","CSV"],"recommendation":"JSON preserves the nested structure."}
+```
+
+Only this explicit final envelope is interpreted. A failed or cancelled process cannot request a decision. Fields are bounded: question 800 characters, evidence 1200, recommendation 800, and 2–4 options of at most 300 characters each. Invalid envelopes fail validation.
+
+The task becomes `awaiting_answer`, retains its workspace/session and releases the serial queue. No model runs while it waits. `get_task`, `list_tasks` and `get_result.task` expose `question` and `questionBudget`. Read the compact question first; fetch supporting files only when necessary. Answer with `continue_task.instruction`, retaining the same requestId when retrying an identical answer. This records the answer and resumes the original session, mode and limits. Questions and answers persist in local task history. Waiting tasks survive restart without replay and can be cancelled. They cannot be accepted as successful deliveries.
+
+Local `maxQuestionRounds` defaults to 2, accepts 0–10, and is captured when the task is created. Zero disables questions. The budget is cumulative across continuations and restarts. An additional question fails with `QUESTION_BUDGET_EXHAUSTED`; nothing retries automatically. Routine implementation and debugging stay with DeepSeek; questions should combine necessary decisions and include evidence plus a recommendation. A question never grants additional authority.
+
+The bridge queues event-triggered messages to the originating Codex thread through the installed `codex queue` command; no model polling is needed. This requires a compatible local Codex CLI and a bound thread. It adds no direct Codex/OpenAI API layer, but event-triggered Codex decisions consume the existing account allowance. Run the explicitly opt-in paid verification with `node scripts/question-smoke.mjs`, setting `BRIDGE_HARNESS_ROOT`, `BRIDGE_HARNESS_HOME` and optionally `BRIDGE_HARNESS_ENTRY` to the existing local installation. Keys remain managed by Harness.
+
+
+### Event wake configuration
+
+`enableCodexWake` defaults to true; `codexPath` defaults to `codex` (set the actual executable path if the daemon PATH lacks it; on Windows use the native `codex.exe`, since shell wrappers such as `.cmd` are not executed). `submit_task.codexThreadId` binds the originating session UUID; the MCP entry also falls back to its inherited `CODEX_THREAD_ID`. Pass the current thread explicitly when the MCP process is shared. Never infer a target from DeepSeek output. Dashboard tasks without a bound thread have `wake.status: unbound` and do not wake Codex.
+
+Only `awaiting_answer`, `succeeded`, `failed`, and `timed_out` produce events. Codex answers once and ends its turn; a later event resumes attention. Do not poll between events. A queued message preserves the thread's selected model; no API key or model override is added. Delivery is claimed on disk before dispatch, at most once per run. `wake.status` reports pending/attempted/queued/failed/unbound/disabled. Queued means the CLI accepted the message, not that GPT has processed it. Failed or uncertain delivery is never automatically retried; inspect manually. A crash after claiming but before dispatch may lose a notification, prioritizing avoidance of duplicate GPT turns. On startup only unclaimed terminal events are sent. Sleep/shutdown and incompatible clients still prevent timely processing.

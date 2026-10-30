@@ -34,10 +34,14 @@ export async function loadConfig(root = projectRoot) {
     maxRuntimeSeconds: boundedInteger(raw.maxRuntimeSeconds, 0, 0, Number.MAX_SAFE_INTEGER, '最长运行秒数'),
     maxToolCalls: boundedInteger(raw.maxToolCalls, 0, 0, Number.MAX_SAFE_INTEGER, '最多工具调用'),
     stallWarningSeconds: boundedInteger(raw.stallWarningSeconds, 300, 1, Number.MAX_SAFE_INTEGER, '进度提醒秒数'),
+    enableCodexWake: raw.enableCodexWake !== false,
+    codexPath: raw.codexPath ?? 'codex',
+    maxQuestionRounds: boundedInteger(raw.maxQuestionRounds, 2, 0, 10, '提问轮数上限'),
     maxStreamBytes: boundedInteger(raw.maxStreamBytes, 4 * 1024 * 1024, 0, Number.MAX_SAFE_INTEGER, '协议流累计字节上限'),
     maxInputBytes: boundedInteger(raw.maxInputBytes, 2_000_000, 1024, 20_000_000, '输入字节上限'),
     maxOutputBytes: boundedInteger(raw.maxOutputBytes, 5_000_000, 1024, 20_000_000, '输出字节上限'),
   };
+  requireValue(typeof config.codexPath === 'string' && config.codexPath.trim().length > 0 && !config.codexPath.includes('\0'), 'INVALID_CONFIG', 'codexPath 必须为可执行文件路径或命令名。');
   requireValue(['agent', 'files'].includes(config.defaultMode), 'INVALID_CONFIG', 'defaultMode 必须是 agent 或 files。');
   requireValue(config.defaultMode !== 'agent' || config.enableNativeAgent, 'NATIVE_AGENT_DISABLED', '原生 Agent 尚未启用；确认本机命令执行权限后显式配置 enableNativeAgent。');
   requireValue(config.readRoots.length > 0 && config.readRoots.every(isAbsolute), 'INVALID_CONFIG', '必须配置输入目录。');

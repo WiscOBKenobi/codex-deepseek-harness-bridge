@@ -82,3 +82,7 @@ Do not publish task records, copied inputs, runtime logs, credentials, or local 
 | Remaining scope | Unverified platforms, optional plugins, or concrete blockers. |
 
 Installation does not include public hosting, a plugin marketplace, other users' data, or every optional upstream plugin. See [lifecycle](usage.md#cancel-continue-and-stop) for exact start/stop behavior.
+
+## Optional event wake verification
+
+Question/answer support needs no extra service. Automatic follow-up requires a local Codex CLI whose `codex queue --help` succeeds, an executable reachable by the daemon (`codexPath`), and the originating thread UUID (`submit_task.codexThreadId`). Do not run a paid verification until authorized. On Windows use the native Codex executable rather than a shell wrapper. See [event configuration](usage.md#event-wake-configuration) and [verification](question-verification.md). Binding must be explicit when an MCP process is shared; do not change global client configuration.

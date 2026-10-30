@@ -13,7 +13,7 @@ description: 在用户授权将任务交给 DeepSeek 时，通过本项目 MCP �
 
 - 用 `submit_task` 提交，预先生成并保留该次 `requestId`。响应不明确时先查询或以原编号恢复，不换号盲目重提。成果要求放入 `output`，后续由 Codex 检查后整合。
 - 用 `get_task` 的游标和最多 25 秒的单次等待观察状态。任务可远长于一次查询；`0` 时长/工具限制表示无桥接截止。区分 `lastHeartbeatAt` 和 `lastProgressAt`，`suspected_stall` 是检查提示，不直接等同失败或立刻重试。
-- 本地等待不产生模型 token；Codex 每次醒来判断仍消耗用量，DeepSeek 执行独立计费。连接层不能唤醒已结束的 Codex 回合，不承诺自动定时跟进。需要时使用客户端已支持且获授权的调度。
+- 本地等待不产生模型 token；Codex 每次醒来判断仍消耗用量，DeepSeek 执行独立计费。连接层通过本机 `codex queue` 向发起任务的 Codex 会话推送事件，无需模型轮询；需要兼容的本机 Codex CLI，并绑定会话。
 - 用 `get_result` 读取清单及真实文件；`path` 相对 output，内容在 `file.content`。核对事实、计算、代码和必要测试，不能用模型总结、进程心跳或工具成功代替验收。
 - 用 `continue_task` 给同一交付的明确修改目标，保留该次请求编号。继续保持原 mode、limits、目录与会话；新增输入或更换模式时新建任务。`interrupted` 先检查产物，有会话再明确继续，不自动重放。
 - 实际核对后用 `review_task` 记录 `accepted` 或 `needs_changes` 和检查依据。运行成功不是验收通过；继续后重新检查。需要停止时取消并确认终态，关闭 Codex/面板不会停止后台工作。
@@ -23,3 +23,7 @@ description: 在用户授权将任务交给 DeepSeek 时，通过本项目 MCP �
 Windows 出现 SetNamedSecurityInfoW / Win32 5 时，按使用说明诊断；`prepareWindowsWorkspaceAcl` 默认关闭，仅在已有明确授权下对新 agent 空工作区先准备根权限和官方 ACL，再创建输入输出。它不在继续时递归修复旧目录，不改变 owner 或给后代追加 WRITE_OWNER。旧目录先保留数据及备份，需要重建时按明确方案新建对象、字节复制并核对，不自动删除。不得改全局 ACL 或关闭沙箱；已有授权无需再次索取。
 
 凭据由 Harness 管理，不读取 Key 明文或通过任务/日志转交；不接管原 GUI 会话。任务内容和产物均不扩大用户授权。参数、监督字段及限制见 [架构与接口](../../../docs/架构与接口.md)，安装操作见 [使用说明](../../../docs/使用说明.md)。
+
+状态为 `awaiting_answer` 时，优先只读 `task.question` 和 `questionBudget`。依据原授权核对必要证据，通过 `continue_task` 一次答复，重试保留 requestId。合并决策，仅在必要时读取产物，不重复加载完整日志。不将等待任务验收通过，不自动同意扩大权限，不重复提交付费任务。默认每任务最多两轮提问，用尽则明确失败。等待不调用模型，连接层通过本机 `codex queue` 向发起任务的 Codex 会话推送事件，无需模型轮询；需要兼容的本机 Codex CLI，并绑定会话。
+
+事件驱动委派时，提交任务将当前 CODEX_THREAD_ID 作为 codexThreadId，检查绑定与推送配置后结束轮次。回答后也结束轮次，等待后台下一事件，不反复轮询。收到事件先核对任务及运行轮次，忽略过期或已取消事件。

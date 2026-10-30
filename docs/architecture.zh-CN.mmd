@@ -43,5 +43,10 @@ flowchart TB
     output --> result
     monitor --> state
     result -- 经 RPC / MCP 回到 Codex --> codex
-    limitation[宿主关机或休眠不能继续执行<br/>异常恢复标 interrupted，明确续办<br/>本连接层不能主动唤醒已结束的 Codex 回合]
+    limitation[宿主关机或休眠不能继续执行<br/>异常恢复标 interrupted，明确续办<br/>事件唤醒需要绑定本机 Codex 会话]
     state -.-> limitation
+    loop -- "有预算的最终提问" --> decision[awaiting_answer · 等待不调用模型]
+    decision -- "MCP 查询" --> codex
+    codex -- "continue_task · 答复并继续原会话" --> queue
+    decision -- "codex queue · Event wake" --> codex
+    result -- "Completion event wake" --> codex

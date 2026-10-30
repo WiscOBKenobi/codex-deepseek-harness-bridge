@@ -91,3 +91,7 @@ node scripts/setup.mjs --harness-root '<Harness绝对路径>' --harness-home '<�
 | 剩余事项 | 未验证的平台、未安装的可选插件或仍需用户处理的实际问题。 |
 
 准确的启停影响见 [使用说明](使用说明.md#7-关闭取消继续与验收)。本 SOP 不把创建插件市场、公开发布服务、同步其他用户资料或安装所有可选 Harness 插件作为默认安装步骤。
+
+## 可选主动唤醒验证
+
+提问与回答无需额外服务。主动跟进需要本机 `codex queue --help` 可用、后台能找到 Codex 可执行文件（`codexPath`），并以 `submit_task.codexThreadId` 绑定发起任务的会话 UUID。Windows 使用原生可执行文件而非 shell 包装脚本。未获授权不运行付费验证。配置见 [主动事件配置](使用说明.md#主动事件配置)，测试范围见 [验证记录](question-verification.zh-CN.md)。共享 MCP 进程时显式绑定会话，不改全局客户端配置。

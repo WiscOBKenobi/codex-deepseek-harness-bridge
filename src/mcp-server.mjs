@@ -13,7 +13,8 @@ import { registerBridgeTools } from './tools.mjs';
  */
 async function bridgeCall(method, params) {
   const client = await import('./client.mjs');
-  return client.bridgeCall(method, params);
+  const threadId = params.codexThreadId ?? process.env.CODEX_THREAD_ID;
+  return client.bridgeCall(method, method === 'submit' && threadId ? {...params, codexThreadId: threadId} : params);
 }
 
 /**
